@@ -1,0 +1,31 @@
+extends layout
+
+block content
+  h1 eve-kino
+
+  div(data-ng-controller="TestController")
+    label Name:
+    input(type="text", ng-model="testName", placeholder="Enter a name here")
+    span Hello {{testName}}!
+
+  script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/require.js")
+  script
+    require.config({
+      baseUrl: "/javascripts/!{build}",
+      paths: {
+        "angular": "lib/angular",
+        "ClientApp": "client/ClientApp"
+      },
+      shim: {
+        "angular": {
+          exports: "angular"
+        }
+      },
+      config: {
+        "ClientApp": !{clientConfig}
+      }
+    });
+    require(['angular', 'ClientApp'], function(angular, app) {
+      var appModuleNames = app;
+      angular.bootstrap(document, appModuleNames);
+    });

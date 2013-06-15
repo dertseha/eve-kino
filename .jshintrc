@@ -1,0 +1,19 @@
+{
+  "camelcase": true,
+  "curly": true,
+  "eqeqeq": true,
+  "latedef": true,
+  "quotmark": true,
+  "undef": true,
+  "strict": true,
+  "globalstrict": true,
+  "maxparams": 5,
+  "maxdepth": 5,
+  "maxcomplexity": 15,
+
+  "globals": {
+    "define": false,
+    "require": false,
+    "module": false
+  }
+}

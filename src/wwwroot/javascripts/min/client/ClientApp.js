@@ -1,0 +1,1 @@
+define("TestController",[],function(){var e=function(e){return function(n){n.testName=e.test}};return{create:e}}),define("ClientApp",["module","angular","TestController"],function(e,n,t){var r=e.config(),o=n.module("ClientApp",[]);return o.controller("TestController",["$scope",t.create(r)]),[o.name]});
