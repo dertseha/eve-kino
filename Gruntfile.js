@@ -32,9 +32,10 @@ module.exports = function(grunt) {
           baseUrl: "src/client",
 
           modules: [{
-            name: "ClientApp",
-            exclude: ["angular"]
-          }],
+              name: "ClientApp",
+              exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js"]
+            }
+          ],
           dir: "build/client/full",
 
           optimize: "none"
@@ -45,9 +46,10 @@ module.exports = function(grunt) {
           baseUrl: "src/client",
 
           modules: [{
-            name: "ClientApp",
-            exclude: ["angular"]
-          }],
+              name: "ClientApp",
+              exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js"]
+            }
+          ],
           dir: "build/client/min",
 
           optimize: "uglify2"
@@ -59,12 +61,13 @@ module.exports = function(grunt) {
     copy: {
       client: {
         files: [{
-          src: "build/client/full/ClientApp.js",
-          dest: "src/wwwroot/javascripts/full/client/ClientApp.js"
-        }, {
-          src: "build/client/min/ClientApp.js",
-          dest: "src/wwwroot/javascripts/min/client/ClientApp.js"
-        }]
+            src: "build/client/full/ClientApp.js",
+            dest: "src/wwwroot/javascripts/full/client/ClientApp.js"
+          }, {
+            src: "build/client/min/ClientApp.js",
+            dest: "src/wwwroot/javascripts/min/client/ClientApp.js"
+          }
+        ]
       }
     },
 
@@ -128,5 +131,6 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks("grunt-plato");
 
   grunt.registerTask("default", ["jshint", "plato", "requirejs:compile", "requirejs:minify", "copy", "test", "yuidoc"]);
+  grunt.registerTask("compile", ["jshint", "requirejs:compile", "requirejs:minify", "copy"]);
   grunt.registerTask("test", ["jshint", "buster"]);
 };

@@ -6,3 +6,9 @@ body {
 a {
   color: #00B7FF;
 }
+
+#mainScreen {
+  background: black;
+  width: 800px;
+  height: 450px;
+}

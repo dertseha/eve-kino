@@ -7,8 +7,15 @@ block content
     label Name:
     input(type="text", ng-model="testName", placeholder="Enter a name here")
     span Hello {{testName}}!
+    br
+    canvas(id="mainScreen")
+
+  script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/gl-matrix.js")
+  script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/ccpwgl_int.js")
+  script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/ccpwgl.js")
 
   script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/require.js")
+
   script
     require.config({
       baseUrl: "/javascripts/!{build}",
@@ -19,13 +26,18 @@ block content
       shim: {
         "angular": {
           exports: "angular"
+        },
+        "lib/ccpwgl": {
+          exports: "ccpwgl"
         }
       },
       config: {
         "ClientApp": !{clientConfig}
       }
     });
-    require(['angular', 'ClientApp'], function(angular, app) {
-      var appModuleNames = app;
+    require(["angular", "ClientApp"], function(angular, app) {
+      var mainScreen = document.getElementById("mainScreen");
+      var appModuleNames = app(mainScreen);
+
       angular.bootstrap(document, appModuleNames);
     });
