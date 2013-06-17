@@ -114,6 +114,24 @@ module.exports = function(grunt) {
       }
     },
 
+    watch: {
+      serverTests: {
+        files: ["src/server/**/*.js", "test/server/**/*.js"],
+        tasks: ["buster:server"],
+        options: {
+          nospawn: true
+        }
+      },
+      clientTests: {
+        files: ["src/client/**/*.js", "test/client/**/*.js"],
+        tasks: ["buster:clientRaw"],
+        options: {
+          nospawn: true,
+          interrupt: true
+        }
+      }
+    },
+
     yuidoc: {
       client: {
         name: "<%= pkg.name %> - Client",
@@ -142,6 +160,7 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks("grunt-contrib-copy");
   grunt.loadNpmTasks("grunt-contrib-jshint");
   grunt.loadNpmTasks("grunt-contrib-requirejs");
+  grunt.loadNpmTasks("grunt-contrib-watch");
   grunt.loadNpmTasks("grunt-contrib-yuidoc");
   grunt.loadNpmTasks("grunt-plato");
 
