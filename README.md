@@ -2,6 +2,11 @@
 
 eve-kino is a web application to generate short movies using the art assets of EVE Online.
 
+## Client Dependencies
+* require.js 2.1.5
+* Angular.js 1.0.6
+* gl-matrix.js 1.3.7
+* ccpwgl https://github.com/ccpgames/ccpwgl
 
 ## License
 

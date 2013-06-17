@@ -76,7 +76,13 @@ module.exports = function(grunt) {
       server: {
         test: {
           reporter: "specification",
-          "config-group": "Server tests"
+          "config-group": "Server tests raw"
+        }
+      },
+      serverCov: {
+        test: {
+          reporter: "quiet",
+          "config-group": "Server tests coverage"
         }
       },
       clientRaw: {
@@ -96,6 +102,15 @@ module.exports = function(grunt) {
         server: {
           port: 9052
         }
+      },
+      clientCov: {
+        test: {
+          reporter: "quiet",
+          "config-group": "Client tests coverage"
+        },
+        server: {
+          port: 9054
+        }
       }
     },
 
@@ -104,7 +119,7 @@ module.exports = function(grunt) {
         name: "<%= pkg.name %> - Client",
         description: "<%= pkg.description %>",
         version: "<%= pkg.version %>",
-        url: "da homepage <%= pkg.homepage %>",
+        url: "<%= pkg.homepage %>",
         options: {
           paths: ["src/client/"],
           outdir: "build/doc/client/"
@@ -114,7 +129,7 @@ module.exports = function(grunt) {
         name: "<%= pkg.name %> - Server",
         description: "<%= pkg.description %>",
         version: "<%= pkg.version %>",
-        url: "da homepage <%= pkg.homepage %>",
+        url: "<%= pkg.homepage %>",
         options: {
           paths: ["src/server/"],
           outdir: "build/doc/server/"
@@ -130,7 +145,9 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks("grunt-contrib-yuidoc");
   grunt.loadNpmTasks("grunt-plato");
 
-  grunt.registerTask("default", ["jshint", "plato", "requirejs:compile", "requirejs:minify", "copy", "test", "yuidoc"]);
+  grunt.registerTask("buster-all", ["buster:clientRaw", "buster:clientMin", "buster:server"]);
+  grunt.registerTask("default", ["jshint", "plato", "requirejs:compile", "requirejs:minify", "copy", "buster-all", "yuidoc"]);
   grunt.registerTask("compile", ["jshint", "requirejs:compile", "requirejs:minify", "copy"]);
-  grunt.registerTask("test", ["jshint", "buster"]);
+  grunt.registerTask("coverage", ["buster:serverCov", "buster:clientCov"]);
+  grunt.registerTask("test", ["jshint", "buster-all"]);
 };
