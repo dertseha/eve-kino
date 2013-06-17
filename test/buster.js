@@ -1,3 +1,4 @@
+/* global process */
 "use strict";
 var fs = require("fs");
 var path = require("path");
@@ -33,7 +34,7 @@ var getServerSourcesWithoutMain = function() {
   });
 
   return result;
-}
+};
 
 config["Server tests raw"] = {
   rootPath: "../",
