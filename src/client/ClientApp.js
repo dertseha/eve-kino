@@ -4,7 +4,7 @@ ClientApp is the primary entry point for the main client side application
 @module Client
 @class ClientApp
 */
-define(["module", "angular", "TestController", "3d/SimpleCamera", "lib/ccpwgl"], function(module, angular, testController, SimpleCamera, ccpwgl) {
+define(["module", "angular", "TestController", "3d/SceneProducer"], function(module, angular, testController, sceneProducer) {
   "use strict";
 
   var config = module.config();
@@ -14,16 +14,10 @@ define(["module", "angular", "TestController", "3d/SimpleCamera", "lib/ccpwgl"],
 
     appModule.controller("TestController", ["$scope", testController.create(config)]);
 
-    ccpwgl.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
-    ccpwgl.initialize(mainScreen);
-    var scene = ccpwgl.loadScene("res:/dx9/scene/universe/a01_cube.red");
+    sceneProducer.getResourceManager().setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
 
-    var camera = new SimpleCamera();
-    camera.fov = 30;
-    camera.nearPlane = 1;
-    camera.farPlane = 10000000;
-    ccpwgl.setCamera(camera);
-
+    var scene = sceneProducer.createScene(mainScreen);
+    scene.setBackgroundBox("res:/dx9/scene/universe/a01_cube.red");
 
     return [appModule.name];
   };

@@ -1,3 +1,10 @@
+/**
+The SimpleCamera is a very basic camera for the scene. It has the minimal
+implementation to provide the projection and view matrices.
+
+@module Client
+@class SimpleCamera
+*/
 define(["lib/gl-matrix"], function(glMatrix) {
   "use strict";
 

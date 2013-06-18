@@ -126,7 +126,7 @@ module.exports = function(grunt) {
         files: ["src/client/**/*.js", "test/client/**/*.js"],
         tasks: ["buster:clientRaw"],
         options: {
-          nospawn: true,
+          nospawn: false,
           interrupt: true
         }
       }
