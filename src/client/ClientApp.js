@@ -4,7 +4,7 @@ ClientApp is the primary entry point for the main client side application
 @module Client
 @class ClientApp
 */
-define(["module", "angular", "TestController", "3d/SceneProducer"], function(module, angular, testController, sceneProducer) {
+define(["module", "angular", "TestController", "3d/SceneProducer", "Director"], function(module, angular, testController, sceneProducer, Director) {
   "use strict";
 
   var config = module.config();
@@ -18,6 +18,8 @@ define(["module", "angular", "TestController", "3d/SceneProducer"], function(mod
 
     var scene = sceneProducer.createScene(mainScreen);
     scene.setBackgroundBox("res:/dx9/scene/universe/a01_cube.red");
+
+    var director = new Director(scene);
 
     return [appModule.name];
   };

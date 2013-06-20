@@ -39,6 +39,15 @@ define(["lib/ccpwgl", "3d/Scene"], function(ccpwgl, Scene) {
 
       scene.setBackgroundBox(resPath);
       assert.calledWith(spy, resPath);
+    },
+
+    "setPreRenderCallback() should set pre-render callback": function() {
+      var scene = new Scene();
+      var testFunction = function() {};
+
+      scene.setPreRenderCallback(testFunction);
+
+      assert.equals(testFunction, ccpwgl.onPreRender);
     }
   });
 });
