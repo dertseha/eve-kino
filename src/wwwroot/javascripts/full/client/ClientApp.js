@@ -117,16 +117,16 @@ define('3d/Helper',["lib/gl-matrix"], function(glMatrix) {
   return helper;
 });
 /**
-The SimpleCamera is a very basic camera for the scene. It has the minimal
+The SceneCamera is a very basic camera for the scene. It has the minimal
 implementation to provide the projection and view matrices.
 
 @module Client
-@class SimpleCamera
+@class SceneCamera
 */
-define('3d/SimpleCamera',["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
+define('3d/SceneCamera',["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
   
 
-  var SimpleCamera = function() {
+  var SceneCamera = function() {
     function createAxis(vector) {
       var axis = {
         rawValue: 0.0,
@@ -155,11 +155,11 @@ define('3d/SimpleCamera',["lib/gl-matrix", "3d/Helper"], function(glMatrix, help
     this.updateView = this.calculateView;
   };
 
-  SimpleCamera.prototype.nullFunction = function() {
+  SceneCamera.prototype.nullFunction = function() {
 
   };
 
-  SimpleCamera.prototype.calculateView = function() {
+  SceneCamera.prototype.calculateView = function() {
     glMatrix.quat4.identity(this.rotation);
 
     glMatrix.quat4.multiply(this.roll.quat, this.rotation, this.rotation);
@@ -172,36 +172,57 @@ define('3d/SimpleCamera',["lib/gl-matrix", "3d/Helper"], function(glMatrix, help
     this.updateView = this.nullFunction;
   };
 
-  SimpleCamera.prototype.onViewChanged = function() {
+  SceneCamera.prototype.onViewChanged = function() {
     this.updateView = this.calculateView;
   };
 
-  SimpleCamera.prototype.getProjection = function(aspect) {
+  SceneCamera.prototype.getProjection = function(aspect) {
     glMatrix.mat4.perspective(this.fov, aspect, this.nearPlane, this.farPlane, this.projection);
 
     return this.projection;
   };
 
-  SimpleCamera.prototype.getView = function() {
+  SceneCamera.prototype.getView = function() {
     this.updateView();
 
     return this.view;
   };
 
-  SimpleCamera.prototype.update = function(dt) {
+  SceneCamera.prototype.update = function(dt) {
 
   };
 
-  SimpleCamera.prototype.getPosition = function(dest) {
-    return glMatrix.vec3.set(this.position, dest || glMatrix.vec3.create());
+  SceneCamera.prototype.getStateData = function(dest) {
+    var result = dest || {};
+
+    result.position = this.getPosition(result.position);
+    if (!result.rotation) {
+      result.rotation = [0, 0, 0];
+    }
+    result.rotation[0] = this.roll.rawValue;
+    result.rotation[1] = this.pitch.rawValue;
+    result.rotation[2] = this.yaw.rawValue;
+
+    return result;
   };
 
-  SimpleCamera.prototype.setPosition = function(pos) {
+  SceneCamera.prototype.setStateData = function(data) {
+    this.setRoll(data.rotation[0]);
+    this.setPitch(data.rotation[1]);
+    this.setYaw(data.rotation[2]);
+    this.setPosition(data.position);
+  };
+
+  SceneCamera.prototype.getPosition = function(dest) {
+    return glMatrix.vec3.set(this.position, dest || [0, 0, 0]);
+  };
+
+  SceneCamera.prototype.setPosition = function(pos) {
     glMatrix.vec3.set(pos, this.position);
     this.onViewChanged();
   };
 
-  SimpleCamera.prototype.changeRotation = function(axis, value) {
+  SceneCamera.prototype.changeRotation = function(axis, value) {
     if (axis.rawValue !== value) {
       axis.rawValue = value;
       glMatrix.quat4.fromAngleAxis(value, axis.vector, axis.quat);
@@ -209,31 +230,31 @@ define('3d/SimpleCamera',["lib/gl-matrix", "3d/Helper"], function(glMatrix, help
     }
   };
 
-  SimpleCamera.prototype.getPitch = function() {
+  SceneCamera.prototype.getPitch = function() {
     return this.pitch.rawValue;
   };
 
-  SimpleCamera.prototype.setPitch = function(value) {
+  SceneCamera.prototype.setPitch = function(value) {
     this.changeRotation(this.pitch, value);
   };
 
-  SimpleCamera.prototype.getRoll = function() {
+  SceneCamera.prototype.getRoll = function() {
     return this.roll.rawValue;
   };
 
-  SimpleCamera.prototype.setRoll = function(value) {
+  SceneCamera.prototype.setRoll = function(value) {
     this.changeRotation(this.roll, value);
   };
 
-  SimpleCamera.prototype.getYaw = function() {
+  SceneCamera.prototype.getYaw = function() {
     return this.yaw.rawValue;
   };
 
-  SimpleCamera.prototype.setYaw = function(value) {
+  SceneCamera.prototype.setYaw = function(value) {
     this.changeRotation(this.yaw, value);
   };
 
-  return SimpleCamera;
+  return SceneCamera;
 });
 /**
 The Scene is the actual scene wrapper that contains all scene objects
@@ -242,12 +263,11 @@ and the render control.
 @module Client
 @class Scene
 */
-define('3d/Scene',["lib/ccpwgl", "3d/SimpleCamera", "lib/gl-matrix"], function(ccpwgl, SimpleCamera, glMatrix) {
+define('3d/Scene',["lib/ccpwgl", "3d/SceneCamera", "lib/gl-matrix"], function(ccpwgl, SceneCamera, glMatrix) {
   
 
-  // var ship;
   var Scene = function() {
-    this.camera = new SimpleCamera();
+    this.camera = new SceneCamera();
 
     ccpwgl.setCamera(this.camera);
 
@@ -255,9 +275,6 @@ define('3d/Scene',["lib/ccpwgl", "3d/SimpleCamera", "lib/gl-matrix"], function(c
 
   Scene.prototype.setBackgroundBox = function(resPath) {
     this.scene = ccpwgl.loadScene(resPath);
-
-    // ship = this.scene.loadShip("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red", undefined);
-    // ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
   };
 
   Scene.prototype.getCamera = function() {
@@ -272,17 +289,6 @@ define('3d/Scene',["lib/ccpwgl", "3d/SimpleCamera", "lib/gl-matrix"], function(c
   */
   Scene.prototype.setPreRenderCallback = function(callback) {
     ccpwgl.onPreRender = callback;
-
-    // function() {
-    //   var shipMat = ship.getTransform();
-
-    //   glMatrix.mat4.identity(shipMat);
-
-    //   //      glMatrix.mat4.translate(shipMat, [1000, 0, 0]);
-    //   ship.setTransform(shipMat);
-
-    //   callback();
-    // };
   };
 
   return Scene;
@@ -328,7 +334,30 @@ define('3d/SceneProducer',["lib/ccpwgl", "3d/ResourceManager", "3d/Scene"], func
   return producer;
 });
 /**
-A director watches over the scene and directs the actors as well as the camera.
+The Stage Manager updates the stage according to the script and/or input
+
+@module Client
+@class StageManager
+*/
+define('StageManager',[], function() {
+  
+
+  var StageManager = function() {
+
+  };
+
+  StageManager.prototype.updateStage = function() {
+
+    // The input from the user can control only one actor and/or the current camera
+    // i.e. actor.update(), camera.update()
+    // the rest comes from the film
+
+  };
+
+  return StageManager;
+});
+/**
+A director issues directions
 
 @module Client
 @class Director
@@ -336,30 +365,86 @@ A director watches over the scene and directs the actors as well as the camera.
 define('Director',[], function() {
   
 
-  var Director = function(scene) {
-    var that = this;
+  var Director = function() {
 
-    this.scene = scene;
-
-    var camera = this.scene.getCamera();
-
-    // camera.setPosition([0, 0, -5000.0]); back
-    // camera.setPosition([0, 1000, -2000.0]); down
-    //camera.setPosition([1000, 0, -2000.0]);
-    camera.setPosition([0, 0, -2000.0]);
-
-    this.scene.setPreRenderCallback(function() {
-      that.onPreFrame();
-    });
-  };
-
-  Director.prototype.onPreFrame = function() {
-    var camera = this.scene.getCamera();
-
-    //camera.setRoll(camera.getRoll() + 0.01);
   };
 
   return Director;
+});
+/**
+The camera combines the scene camera (viewport) with an operator and a film.
+
+@module Client
+@class Camera
+*/
+define('Camera',[], function() {
+  
+
+  var nullOperator = {
+    getCameraStateData: function(lastState) {
+      return lastState;
+    }
+  };
+
+  var Camera = function(sceneCamera) {
+    this.sceneCamera = sceneCamera;
+    this.operator = nullOperator;
+
+    /**
+      @private
+      @property lastState buffer object to avoid creating new ones each frame
+    */
+    this.lastState = null;
+
+    //camera.setPosition([0, 0, -2000.0]);
+
+  };
+
+  Camera.getNullOperator = function() {
+    return Object.create(nullOperator);
+  };
+
+  Camera.prototype.setOperator = function(operator) {
+    this.operator = operator || nullOperator;
+  };
+
+  Camera.prototype.updateFrame = function() {
+
+    // onPlayback:
+    //   getRotation(), getPosition()
+    // onRecord/Rehearse:
+    //   rotation = Operator.update(currentRotation, recordedRotation)
+    //
+    // recordedState = film.getCameraStateData();
+    // currentState = camera.getStateData();
+    // newState = operator.getCameraStateData({}, currentState, recordedState)
+    // camera.setStateData(newState);
+
+    var sceneCamera = this.sceneCamera;
+    var lastState = sceneCamera.getStateData(this.lastState);
+    var newState = this.operator.getCameraStateData(lastState);
+
+    sceneCamera.setStateData(newState);
+    this.lastState = lastState;
+  };
+
+  return Camera;
+});
+/**
+
+@module Client
+@class ProductionStaff
+*/
+define('Resources',["StageManager", "Director", "Camera"], function(StageManager, Director, Camera) {
+  
+
+  var resources = {
+    StageManager: StageManager,
+    Director: Director,
+    Camera: Camera
+  };
+
+  return resources;
 });
 /**
 ClientApp is the primary entry point for the main client side application
@@ -367,7 +452,7 @@ ClientApp is the primary entry point for the main client side application
 @module Client
 @class ClientApp
 */
-define('ClientApp',["module", "angular", "TestController", "3d/SceneProducer", "Director"], function(module, angular, testController, sceneProducer, Director) {
+define('ClientApp',["module", "angular", "TestController", "3d/SceneProducer", "Resources"], function(module, angular, testController, sceneProducer, Resources) {
   
 
   var config = module.config();
@@ -382,7 +467,20 @@ define('ClientApp',["module", "angular", "TestController", "3d/SceneProducer", "
     var scene = sceneProducer.createScene(mainScreen);
     scene.setBackgroundBox("res:/dx9/scene/universe/a01_cube.red");
 
-    var director = new Director(scene);
+    var ship = scene.scene.loadShip("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red", undefined);
+    ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
+
+    var camera = new Resources.Camera(scene.getCamera());
+    var director = new Resources.Director();
+
+    this.scene.setPreRenderCallback(function() {
+      // TODO: move this to some general time keeper
+
+      // stageManager.updateStage() // perform blocking... by stage manager?
+      camera.updateFrame();
+      // recordHead.saveStage() // could also be called continuity; done by camera?
+
+    });
 
     return [appModule.name];
   };

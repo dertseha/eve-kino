@@ -1,14 +1,14 @@
 /**
-The SimpleCamera is a very basic camera for the scene. It has the minimal
+The SceneCamera is a very basic camera for the scene. It has the minimal
 implementation to provide the projection and view matrices.
 
 @module Client
-@class SimpleCamera
+@class SceneCamera
 */
 define(["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
   "use strict";
 
-  var SimpleCamera = function() {
+  var SceneCamera = function() {
     function createAxis(vector) {
       var axis = {
         rawValue: 0.0,
@@ -37,11 +37,11 @@ define(["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
     this.updateView = this.calculateView;
   };
 
-  SimpleCamera.prototype.nullFunction = function() {
+  SceneCamera.prototype.nullFunction = function() {
 
   };
 
-  SimpleCamera.prototype.calculateView = function() {
+  SceneCamera.prototype.calculateView = function() {
     glMatrix.quat4.identity(this.rotation);
 
     glMatrix.quat4.multiply(this.roll.quat, this.rotation, this.rotation);
@@ -54,36 +54,57 @@ define(["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
     this.updateView = this.nullFunction;
   };
 
-  SimpleCamera.prototype.onViewChanged = function() {
+  SceneCamera.prototype.onViewChanged = function() {
     this.updateView = this.calculateView;
   };
 
-  SimpleCamera.prototype.getProjection = function(aspect) {
+  SceneCamera.prototype.getProjection = function(aspect) {
     glMatrix.mat4.perspective(this.fov, aspect, this.nearPlane, this.farPlane, this.projection);
 
     return this.projection;
   };
 
-  SimpleCamera.prototype.getView = function() {
+  SceneCamera.prototype.getView = function() {
     this.updateView();
 
     return this.view;
   };
 
-  SimpleCamera.prototype.update = function(dt) {
+  SceneCamera.prototype.update = function(dt) {
 
   };
 
-  SimpleCamera.prototype.getPosition = function(dest) {
-    return glMatrix.vec3.set(this.position, dest || glMatrix.vec3.create());
+  SceneCamera.prototype.getStateData = function(dest) {
+    var result = dest || {};
+
+    result.position = this.getPosition(result.position);
+    if (!result.rotation) {
+      result.rotation = [0, 0, 0];
+    }
+    result.rotation[0] = this.roll.rawValue;
+    result.rotation[1] = this.pitch.rawValue;
+    result.rotation[2] = this.yaw.rawValue;
+
+    return result;
   };
 
-  SimpleCamera.prototype.setPosition = function(pos) {
+  SceneCamera.prototype.setStateData = function(data) {
+    this.setRoll(data.rotation[0]);
+    this.setPitch(data.rotation[1]);
+    this.setYaw(data.rotation[2]);
+    this.setPosition(data.position);
+  };
+
+  SceneCamera.prototype.getPosition = function(dest) {
+    return glMatrix.vec3.set(this.position, dest || [0, 0, 0]);
+  };
+
+  SceneCamera.prototype.setPosition = function(pos) {
     glMatrix.vec3.set(pos, this.position);
     this.onViewChanged();
   };
 
-  SimpleCamera.prototype.changeRotation = function(axis, value) {
+  SceneCamera.prototype.changeRotation = function(axis, value) {
     if (axis.rawValue !== value) {
       axis.rawValue = value;
       glMatrix.quat4.fromAngleAxis(value, axis.vector, axis.quat);
@@ -91,29 +112,29 @@ define(["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
     }
   };
 
-  SimpleCamera.prototype.getPitch = function() {
+  SceneCamera.prototype.getPitch = function() {
     return this.pitch.rawValue;
   };
 
-  SimpleCamera.prototype.setPitch = function(value) {
+  SceneCamera.prototype.setPitch = function(value) {
     this.changeRotation(this.pitch, value);
   };
 
-  SimpleCamera.prototype.getRoll = function() {
+  SceneCamera.prototype.getRoll = function() {
     return this.roll.rawValue;
   };
 
-  SimpleCamera.prototype.setRoll = function(value) {
+  SceneCamera.prototype.setRoll = function(value) {
     this.changeRotation(this.roll, value);
   };
 
-  SimpleCamera.prototype.getYaw = function() {
+  SceneCamera.prototype.getYaw = function() {
     return this.yaw.rawValue;
   };
 
-  SimpleCamera.prototype.setYaw = function(value) {
+  SceneCamera.prototype.setYaw = function(value) {
     this.changeRotation(this.yaw, value);
   };
 
-  return SimpleCamera;
+  return SceneCamera;
 });

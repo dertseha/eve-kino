@@ -5,12 +5,11 @@ and the render control.
 @module Client
 @class Scene
 */
-define(["lib/ccpwgl", "3d/SimpleCamera", "lib/gl-matrix"], function(ccpwgl, SimpleCamera, glMatrix) {
+define(["lib/ccpwgl", "3d/SceneCamera", "lib/gl-matrix"], function(ccpwgl, SceneCamera, glMatrix) {
   "use strict";
 
-  // var ship;
   var Scene = function() {
-    this.camera = new SimpleCamera();
+    this.camera = new SceneCamera();
 
     ccpwgl.setCamera(this.camera);
 
@@ -18,9 +17,6 @@ define(["lib/ccpwgl", "3d/SimpleCamera", "lib/gl-matrix"], function(ccpwgl, Simp
 
   Scene.prototype.setBackgroundBox = function(resPath) {
     this.scene = ccpwgl.loadScene(resPath);
-
-    // ship = this.scene.loadShip("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red", undefined);
-    // ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
   };
 
   Scene.prototype.getCamera = function() {
@@ -35,17 +31,6 @@ define(["lib/ccpwgl", "3d/SimpleCamera", "lib/gl-matrix"], function(ccpwgl, Simp
   */
   Scene.prototype.setPreRenderCallback = function(callback) {
     ccpwgl.onPreRender = callback;
-
-    // function() {
-    //   var shipMat = ship.getTransform();
-
-    //   glMatrix.mat4.identity(shipMat);
-
-    //   //      glMatrix.mat4.translate(shipMat, [1000, 0, 0]);
-    //   ship.setTransform(shipMat);
-
-    //   callback();
-    // };
   };
 
   return Scene;

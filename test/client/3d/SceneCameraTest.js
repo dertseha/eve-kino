@@ -1,12 +1,12 @@
 /* global buster */
-define(["3d/SimpleCamera", "3d/Helper", "lib/gl-matrix"], function(SimpleCamera, helper, glMatrix) {
+define(["3d/SceneCamera", "3d/Helper", "lib/gl-matrix"], function(SceneCamera, helper, glMatrix) {
   "use strict";
 
   var assert = buster.assert;
 
-  buster.testCase("SimpleCamera", {
+  buster.testCase("SceneCamera", {
     setUp: function() {
-      this.camera = new SimpleCamera();
+      this.camera = new SceneCamera();
     },
 
     "should be an object": function() {
@@ -28,13 +28,13 @@ define(["3d/SimpleCamera", "3d/Helper", "lib/gl-matrix"], function(SimpleCamera,
 
     "should have a default position of zero": function() {
       var result = this.camera.getPosition();
-      var expected = glMatrix.vec3.create();
+      var expected = [0, 0, 0];
 
       assert.equals(result, expected);
     },
 
     "should allow changing of position": function() {
-      var expected = glMatrix.vec3.create([10, 20, 30]);
+      var expected = [10, 20, 30];
 
       this.camera.setPosition(expected);
       var result = this.camera.getPosition();
