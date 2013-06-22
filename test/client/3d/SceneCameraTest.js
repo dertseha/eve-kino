@@ -42,42 +42,39 @@ define(["3d/SceneCamera", "3d/Helper", "lib/gl-matrix"], function(SceneCamera, h
       assert.equals(result, expected);
     },
 
-    "should have a default pitch of 0.0": function() {
-      var result = this.camera.getPitch();
+    "should have a default rotation of identity": function() {
+      var expected = [0, 0, 0, 1];
+      var result = this.camera.getRotation();
 
-      assert.equals(result, 0.0);
+      assert.equals(result, expected);
     },
 
-    "should have a default roll of 0.0": function() {
-      var result = this.camera.getRoll();
-
-      assert.equals(result, 0.0);
-    },
-
-    "should have a default yaw of 0.0": function() {
-      var result = this.camera.getYaw();
-
-      assert.equals(result, 0.0);
-    },
-
-    "should allow changing of rotation, such as pitch": function() {
-      var testValue = 90.0;
-      this.camera.setPitch(testValue);
-      var result = this.camera.getPitch();
-
-      assert.equals(result, testValue);
-    },
-
-    "should have a rotated view after changing rotation": function() {
+    "should have a changed view after changing rotation": function() {
       var expected = glMatrix.mat4.identity();
       var radians = helper.degreeToRad(45);
+      var rotation = glMatrix.quat4.fromAngleAxis(radians, helper.VIEW_VECTOR_RIGHT, glMatrix.quat4.create());
 
       glMatrix.mat4.rotate(expected, radians, helper.VIEW_VECTOR_RIGHT);
 
-      this.camera.setPitch(radians);
+      this.camera.setRotation(rotation);
+
+      var result = this.camera.getView();
+
+      assert.equals(result, expected);
+    },
+
+    "should have a changed view after changing position": function() {
+      var expected = glMatrix.mat4.identity();
+      var position = glMatrix.vec3.create([10, 20, 30]);
+
+      glMatrix.mat4.translate(expected, position);
+
+      this.camera.setPosition(position);
+
       var result = this.camera.getView();
 
       assert.equals(result, expected);
     }
+
   });
 });

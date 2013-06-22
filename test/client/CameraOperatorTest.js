@@ -7,7 +7,7 @@ define(["CameraOperator"], function(CameraOperator) {
   function createEmptyCameraState() {
     var cameraState = {
       position: [0, 0, 0],
-      rotation: [0, 0, 0]
+      rotation: [0, 0, 0, 1]
     };
 
     return cameraState;
@@ -38,13 +38,13 @@ define(["CameraOperator"], function(CameraOperator) {
     },
 
     "should apply commands to camera state if given": function() {
-      this.commands.rollClockwise = -0.01;
-      this.commands.pitchUpDown = 0.02;
-      this.commands.yawRightLeft = 0.03;
+      this.commands.moveRightLeft = 0.01;
+      this.commands.moveUpDown = 0.02;
+      this.commands.moveForwardBackward = 0.03;
 
       var result = this.operator.getCameraStateData(this.cameraState);
 
-      assert.equals(result.rotation, [-0.01, 0.02, 0.03]);
+      assert.equals(result.position, [-0.01, -0.02, 0.03]);
     }
   });
 });

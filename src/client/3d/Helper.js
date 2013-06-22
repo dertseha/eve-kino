@@ -24,6 +24,8 @@ define(["lib/gl-matrix"], function(glMatrix) {
     rightward: -1.0
   };
 
+  var tempQuat = glMatrix.quat4.create();
+
   var helper = {
     VIEW_DIRECTION_FORWARD: viewDirections.forward,
     VIEW_DIRECTION_UP: viewDirections.upward,
@@ -53,6 +55,13 @@ define(["lib/gl-matrix"], function(glMatrix) {
     */
     degreeToRad: function(degrees) {
       return degrees * oneDegreeInRad;
+    },
+
+    rotateQuaternion: function(quat, axes) {
+      axes.forEach(function(axis) {
+        glMatrix.quat4.fromAngleAxis(axis.rad, axis.vector, tempQuat);
+        glMatrix.quat4.multiply(tempQuat, quat, quat);
+      });
     }
   };
 
