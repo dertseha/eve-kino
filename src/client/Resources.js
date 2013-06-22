@@ -1,15 +1,16 @@
 /**
 
 @module Client
-@class ProductionStaff
+@class Resource
 */
-define(["StageManager", "Director", "Camera"], function(StageManager, Director, Camera) {
+define(["StageManager", "Camera", "Director", "CameraOperator"], function(StageManager, Camera, Director, CameraOperator) {
   "use strict";
 
   var resources = {
     StageManager: StageManager,
     Director: Director,
-    Camera: Camera
+    Camera: Camera,
+    CameraOperator: CameraOperator
   };
 
   return resources;

@@ -1,10 +1,12 @@
+/*jshint maxparams:100 */
+
 /**
 ClientApp is the primary entry point for the main client side application
 
 @module Client
 @class ClientApp
 */
-define(["module", "angular", "TestController", "3d/SceneProducer", "Resources"], function(module, angular, testController, sceneProducer, Resources) {
+define(["module", "angular", "TestController", "3d/SceneProducer", "Resources", "controls/GamepadApi"], function(module, angular, testController, sceneProducer, Resources, GamepadApi) {
   "use strict";
 
   var config = module.config();
@@ -24,8 +26,36 @@ define(["module", "angular", "TestController", "3d/SceneProducer", "Resources"],
 
     var camera = new Resources.Camera(scene.getCamera());
     var director = new Resources.Director();
+    var camCommands = director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
+    var cameraOperator = new Resources.CameraOperator(camCommands);
+    var gamepadInput = director.getInputChannel("gamepad");
 
-    this.scene.setPreRenderCallback(function() {
+    camera.setOperator(cameraOperator);
+
+    director.addBinding({
+      actionName: "yawRightLeft"
+    }, {
+      inputName: "RIGHT_STICK_X"
+    });
+
+    var gamepadListener = {
+      onGamepadDisconnected: function() {},
+      onControlValueChanged: function(controlName, value) {
+        gamepadInput.setIntensity(controlName, value);
+      }
+    };
+    var gamepadApi = new GamepadApi();
+    gamepadApi.addGamepadListener({
+      onGamepadConnected: function(gamepad) {
+        gamepad.addListener(gamepadListener);
+      },
+      onGamepadDisconnected: function() {}
+    });
+    var gotGamepads = gamepadApi.init();
+
+    //var director = new Resources.Director();
+
+    scene.setPreRenderCallback(function() {
       // TODO: move this to some general time keeper
 
       // stageManager.updateStage() // perform blocking... by stage manager?

@@ -10,13 +10,14 @@ block content
     br
     canvas(id="mainScreen")
 
+  script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/gamepad.js")
   script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/gl-matrix.js")
   script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/ccpwgl_int.js")
   script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/ccpwgl.js")
 
   script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/require.js")
 
-  script
+  script.
     require.config({
       baseUrl: "/javascripts/!{build}",
       paths: {
@@ -29,6 +30,9 @@ block content
         },
         "lib/ccpwgl": {
           exports: "ccpwgl"
+        },
+        "lib/gamepad": {
+          exports: "Gamepad"
         }
       },
       config: {

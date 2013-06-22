@@ -90,7 +90,7 @@ define(["Director"], function(Director) {
 
         inputChannel.setIntensity("dpadX", expected);
 
-        var result = commandChannel.getNewCommands()["moveLeftRight"];
+        var result = commandChannel.getNewCommands().moveLeftRight;
 
         assert.equals(result, expected);
       },
@@ -103,7 +103,7 @@ define(["Director"], function(Director) {
         inputChannel.setIntensity("dpadX", expected);
 
         commandChannel.getNewCommands();
-        var result = commandChannel.getNewCommands()["moveLeftRight"];
+        var result = commandChannel.getNewCommands().moveLeftRight;
 
         assert.equals(result, 0.0);
       }

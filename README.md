@@ -7,6 +7,7 @@ eve-kino is a web application to generate short movies using the art assets of E
 * Angular.js 1.0.6
 * gl-matrix.js 1.3.7
 * ccpwgl https://github.com/ccpgames/ccpwgl
+* gamepad https://github.com/kallaspriit/HTML5-JavaScript-Gamepad-Controller-Library
 
 ## License
 

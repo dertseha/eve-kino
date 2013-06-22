@@ -357,21 +357,6 @@ define('StageManager',[], function() {
   return StageManager;
 });
 /**
-A director issues directions
-
-@module Client
-@class Director
-*/
-define('Director',[], function() {
-  
-
-  var Director = function() {
-
-  };
-
-  return Director;
-});
-/**
 The camera combines the scene camera (viewport) with an operator and a film.
 
 @module Client
@@ -431,28 +416,344 @@ define('Camera',[], function() {
   return Camera;
 });
 /**
+A command channel provides commands based on inputs
 
 @module Client
-@class ProductionStaff
+@class CommandChannel
 */
-define('Resources',["StageManager", "Director", "Camera"], function(StageManager, Director, Camera) {
+define('controls/CommandChannel',[], function() {
+  
+
+  var CommandChannel = function(owner, id, type, actions) {
+    this.owner = owner;
+    this.id = id;
+    this.type = type;
+    this.actions = actions;
+
+    this.resetCommands();
+  };
+
+  CommandChannel.prototype.resetCommands = function() {
+    var that = this;
+
+    this.commands = {};
+    this.actions.forEach(function(actionName) {
+      that.commands[actionName] = 0.0;
+    });
+  };
+
+  CommandChannel.prototype.close = function() {
+    this.owner.removeCommandChannel(this.id);
+  };
+
+  CommandChannel.prototype.hasAction = function(actionName) {
+    return this.actions.indexOf(actionName) >= 0;
+  };
+
+  CommandChannel.prototype.setCommandIntensity = function(actionName, intensity) {
+    this.commands[actionName] = intensity;
+  };
+
+  CommandChannel.prototype.getNewCommands = function() {
+    var commands = this.commands;
+
+    this.resetCommands();
+
+    return commands;
+  };
+
+  return CommandChannel;
+});
+/**
+An input channel delivers inputs from a source
+
+@module Client
+@class InputChannel
+*/
+define('controls/InputChannel',[], function() {
+  
+
+  var InputChannel = function(owner, id, type) {
+    this.owner = owner;
+    this.id = id;
+    this.type = type;
+  };
+
+  InputChannel.prototype.close = function() {
+    this.owner.removeInputChannel(this.id);
+  };
+
+  InputChannel.prototype.setIntensity = function(inputName, intensity) {
+    this.owner.setInputIntensity(this.type, inputName, intensity);
+  };
+
+  return InputChannel;
+});
+/**
+A director issues directions
+
+@module Client
+@class Director
+*/
+define('Director',["controls/CommandChannel", "controls/InputChannel"], function(CommandChannel, InputChannel) {
+  
+
+  var Director = function() {
+    this.bindings = {};
+    this.commandChannels = {};
+    this.inputChannels = {};
+    this.idCounter = 0;
+  };
+
+  Director.prototype.getNextId = function() {
+    return "" + this.idCounter++;
+  };
+
+  Director.prototype.getInputChannel = function(type) {
+    var id = this.getNextId();
+    var inputChannel = new InputChannel(this, id, type);
+
+    this.inputChannels[id] = inputChannel;
+
+    return inputChannel;
+  };
+
+  Director.prototype.removeInputChannel = function(id) {
+    delete this.inputChannels[id];
+  };
+
+  Director.prototype.getCommandChannel = function(type, actions) {
+    var id = this.getNextId();
+    var commandChannel = new CommandChannel(this, id, type, actions);
+
+    this.commandChannels[id] = commandChannel;
+
+    return commandChannel;
+  };
+
+  Director.prototype.removeCommandChannel = function(id) {
+    delete this.commandChannels[id];
+  };
+
+  Director.prototype.getBindings = function() {
+    return this.bindings;
+  };
+
+
+  Director.prototype.addBinding = function(actionId, inputId) {
+    this.bindings[actionId.actionName] = [inputId];
+  };
+
+  Director.prototype.setInputIntensity = function(inputType, inputName, intensity) {
+    var that = this;
+    var checkBindings = function(actionName) {
+      var bindingList = that.bindings[actionName];
+
+      if (bindingList) {
+        bindingList.forEach(function(boundInputId) {
+          if (inputName === boundInputId.inputName) {
+            that.setActionIntensity(actionName, intensity);
+          }
+        });
+      }
+    };
+
+    for (var actionName in this.bindings) {
+      checkBindings(actionName);
+    }
+  };
+
+  Director.prototype.setActionIntensity = function(actionName, intensity) {
+    var id;
+    var channel;
+
+    for (id in this.commandChannels) {
+      channel = this.commandChannels[id];
+      if (channel.hasAction(actionName)) {
+        channel.setCommandIntensity(actionName, intensity);
+      }
+    }
+  };
+
+  return Director;
+});
+/**
+A camera operator handles a camera when directed to
+
+@module Client
+@class Director
+*/
+define('CameraOperator',[], function() {
+  
+
+  var actionNames = ["pitchUpDown", "rollClockwise", "yawRightLeft", "moveUpDown", "moveForwardBackward", "moveRightLeft"];
+
+  var CameraOperator = function(commandChannel) {
+    this.commandChannel = commandChannel;
+  };
+
+  CameraOperator.getActionNames = function() {
+    return actionNames.slice(0);
+  };
+
+  CameraOperator.prototype.getCameraStateData = function(lastState) {
+    var newState = lastState;
+    var commands = this.commandChannel.getNewCommands();
+
+    newState.rotation[0] += commands.rollClockwise;
+    newState.rotation[1] += commands.pitchUpDown;
+    newState.rotation[2] += commands.yawRightLeft;
+
+    return newState;
+  };
+
+  return CameraOperator;
+});
+/**
+
+@module Client
+@class Resource
+*/
+define('Resources',["StageManager", "Camera", "Director", "CameraOperator"], function(StageManager, Camera, Director, CameraOperator) {
   
 
   var resources = {
     StageManager: StageManager,
     Director: Director,
-    Camera: Camera
+    Camera: Camera,
+    CameraOperator: CameraOperator
   };
 
   return resources;
 });
+/**
+The gamepad API provides a wrapper around the used gamepad interface
+
+@module Client
+@class GamepadApi
+*/
+define('controls/Gamepad',["lib/gamepad"], function(GamepadLib) {
+  
+
+  var Gamepad = function(runtimeId) {
+    this.listeners = [];
+  };
+
+  Gamepad.prototype.getRuntimeId = function() {
+    return this.runtimeId;
+  };
+
+  Gamepad.prototype.addListener = function(listener) {
+    this.listeners.push(listener);
+  };
+
+  Gamepad.prototype.onDeviceDisconnected = function() {
+    this.listeners.forEach(function(listener) {
+      listener.onGamepadDisconnected();
+    });
+  };
+
+  Gamepad.prototype.onControlValueChanged = function(controlName, value) {
+    this.listeners.forEach(function(listener) {
+      listener.onControlValueChanged(controlName, value);
+    });
+  };
+
+  return Gamepad;
+});
+/**
+The gamepad API provides a wrapper around the used gamepad interface
+
+@module Client
+@class GamepadApi
+*/
+define('controls/GamepadApi',["lib/gamepad", "controls/Gamepad"], function(GamepadLib, Gamepad) {
+  
+
+  var GamepadApi = function() {
+    this.lib = new GamepadLib();
+    this.gamepads = {};
+    this.idCounter = 0;
+    this.connectionListeners = [];
+  };
+
+  GamepadApi.prototype.init = function() {
+    var that = this;
+
+    this.lib.bind(GamepadLib.Event.CONNECTED, function(device) {
+      that.onDeviceConnected(device);
+    });
+    this.lib.bind(GamepadLib.Event.DISCONNECTED, function(device) {
+      that.onDeviceDisonnected(device);
+    });
+    this.lib.bind(GamepadLib.Event.BUTTON_DOWN, function(param) {
+      that.onControlValueChanged(param.gamepad.index, param.control, 1.0);
+    });
+    this.lib.bind(GamepadLib.Event.BUTTON_UP, function(param) {
+      that.onControlValueChanged(param.gamepad.index, param.control, 0.0);
+    });
+    this.lib.bind(GamepadLib.Event.AXIS_CHANGED, function(param) {
+      that.onControlValueChanged(param.gamepad.index, param.axis, param.value);
+    });
+
+    return this.lib.init();
+  };
+
+  GamepadApi.prototype.getGamepads = function() {
+    var result = [];
+    var index;
+
+    for (index in this.gamepads) {
+      result.push(this.gamepads[index]);
+    }
+
+    return result;
+  };
+
+  GamepadApi.prototype.addGamepadListener = function(listener) {
+    this.connectionListeners.push(listener);
+  };
+
+  GamepadApi.prototype.onDeviceConnected = function(device) {
+    var gamepad = new Gamepad(this.idCounter++);
+
+    this.gamepads[device.index] = gamepad;
+    this.connectionListeners.forEach(function(listener) {
+      listener.onGamepadConnected(gamepad);
+    });
+  };
+
+  GamepadApi.prototype.onDeviceDisonnected = function(device) {
+    var gamepad = this.gamepads[device.index];
+
+    if (gamepad) {
+      delete this.gamepads[device.index];
+      gamepad.onDeviceDisconnected();
+      this.connectionListeners.forEach(function(listener) {
+        listener.onGamepadDisconnected(gamepad);
+      });
+    }
+  };
+
+  GamepadApi.prototype.onControlValueChanged = function(deviceKey, controlName, value) {
+    var gamepad = this.gamepads[deviceKey];
+
+    if (gamepad) {
+      gamepad.onControlValueChanged(controlName, value);
+    }
+  };
+
+  return GamepadApi;
+});
+/*jshint maxparams:100 */
+
 /**
 ClientApp is the primary entry point for the main client side application
 
 @module Client
 @class ClientApp
 */
-define('ClientApp',["module", "angular", "TestController", "3d/SceneProducer", "Resources"], function(module, angular, testController, sceneProducer, Resources) {
+define('ClientApp',["module", "angular", "TestController", "3d/SceneProducer", "Resources", "controls/GamepadApi"], function(module, angular, testController, sceneProducer, Resources, GamepadApi) {
   
 
   var config = module.config();
@@ -472,8 +773,36 @@ define('ClientApp',["module", "angular", "TestController", "3d/SceneProducer", "
 
     var camera = new Resources.Camera(scene.getCamera());
     var director = new Resources.Director();
+    var camCommands = director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
+    var cameraOperator = new Resources.CameraOperator(camCommands);
+    var gamepadInput = director.getInputChannel("gamepad");
 
-    this.scene.setPreRenderCallback(function() {
+    camera.setOperator(cameraOperator);
+
+    director.addBinding({
+      actionName: "yawRightLeft"
+    }, {
+      inputName: "RIGHT_STICK_X"
+    });
+
+    var gamepadListener = {
+      onGamepadDisconnected: function() {},
+      onControlValueChanged: function(controlName, value) {
+        gamepadInput.setIntensity(controlName, value);
+      }
+    };
+    var gamepadApi = new GamepadApi();
+    gamepadApi.addGamepadListener({
+      onGamepadConnected: function(gamepad) {
+        gamepad.addListener(gamepadListener);
+      },
+      onGamepadDisconnected: function() {}
+    });
+    var gotGamepads = gamepadApi.init();
+
+    //var director = new Resources.Director();
+
+    scene.setPreRenderCallback(function() {
       // TODO: move this to some general time keeper
 
       // stageManager.updateStage() // perform blocking... by stage manager?

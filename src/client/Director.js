@@ -54,18 +54,21 @@ define(["controls/CommandChannel", "controls/InputChannel"], function(CommandCha
   };
 
   Director.prototype.setInputIntensity = function(inputType, inputName, intensity) {
-    var actionName;
-    var bindingList;
     var that = this;
+    var checkBindings = function(actionName) {
+      var bindingList = that.bindings[actionName];
 
-    for (actionName in this.bindings) {
-      bindingList = this.bindings[actionName];
+      if (bindingList) {
+        bindingList.forEach(function(boundInputId) {
+          if (inputName === boundInputId.inputName) {
+            that.setActionIntensity(actionName, intensity);
+          }
+        });
+      }
+    };
 
-      bindingList.forEach(function(boundInputId) {
-        if (inputName === boundInputId.inputName) {
-          that.setActionIntensity(actionName, intensity);
-        }
-      });
+    for (var actionName in this.bindings) {
+      checkBindings(actionName);
     }
   };
 
