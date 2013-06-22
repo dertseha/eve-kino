@@ -30,7 +30,7 @@ define(["lib/gamepad", "controls/Gamepad"], function(GamepadLib, Gamepad) {
       that.onControlValueChanged(param.gamepad.index, param.control, 0.0);
     });
     this.lib.bind(GamepadLib.Event.AXIS_CHANGED, function(param) {
-      that.onControlValueChanged(param.gamepad.index, param.axis, param.value);
+      that.onAxisValueChanged(param.gamepad.index, param.axis, param.value);
     });
 
     return this.lib.init();
@@ -77,6 +77,20 @@ define(["lib/gamepad", "controls/Gamepad"], function(GamepadLib, Gamepad) {
 
     if (gamepad) {
       gamepad.onControlValueChanged(controlName, value);
+    }
+  };
+
+  GamepadApi.prototype.onAxisValueChanged = function(deviceKey, rawAxisName, value) {
+    var gamepad = this.gamepads[deviceKey];
+
+    if (gamepad) {
+      if (value < 0) {
+        gamepad.onControlValueChanged(rawAxisName + "_POS", 0.0);
+        gamepad.onControlValueChanged(rawAxisName + "_NEG", -value);
+      } else {
+        gamepad.onControlValueChanged(rawAxisName + "_NEG", 0.0);
+        gamepad.onControlValueChanged(rawAxisName + "_POS", value);
+      }
     }
   };
 

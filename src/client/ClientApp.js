@@ -33,19 +33,47 @@ define(["module", "angular", "TestController", "3d/SceneProducer", "Resources", 
     camera.setOperator(cameraOperator);
 
     director.addBinding({
-      actionName: "yawRightLeft"
+      actionName: "yawLeft"
     }, {
-      inputName: "RIGHT_STICK_X"
+      inputName: "RIGHT_STICK_X_NEG"
     });
     director.addBinding({
-      actionName: "pitchUpDown"
+      actionName: "yawRight"
     }, {
-      inputName: "RIGHT_STICK_Y"
+      inputName: "RIGHT_STICK_X_POS"
     });
+
+    director.addBinding({
+      actionName: "pitchUp"
+    }, {
+      inputName: "RIGHT_STICK_Y_POS"
+    });
+    director.addBinding({
+      actionName: "pitchDown"
+    }, {
+      inputName: "RIGHT_STICK_Y_NEG"
+    });
+
     director.addBinding({
       actionName: "rollClockwise"
     }, {
-      inputName: "LEFT_STICK_X"
+      inputName: "LEFT_STICK_X_POS"
+    });
+    director.addBinding({
+      actionName: "rollCounter"
+    }, {
+      inputName: "LEFT_STICK_X_NEG"
+    });
+
+    director.addBinding({
+      actionName: "moveForward"
+    }, {
+      inputName: "LEFT_STICK_Y_NEG"
+    });
+    director.addBinding({
+      actionName: "moveBackward"
+    }, {
+      inputName: "LEFT_STICK_Y_POS"
     });
 
     var gamepadListener = {
