@@ -37,12 +37,8 @@ define([], function() {
     this.commands[actionName] = intensity;
   };
 
-  CommandChannel.prototype.getNewCommands = function() {
-    var commands = this.commands;
-
-    this.resetCommands();
-
-    return commands;
+  CommandChannel.prototype.getCommands = function() {
+    return this.commands;
   };
 
   return CommandChannel;

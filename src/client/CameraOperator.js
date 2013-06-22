@@ -19,7 +19,7 @@ define([], function() {
 
   CameraOperator.prototype.getCameraStateData = function(lastState) {
     var newState = lastState;
-    var commands = this.commandChannel.getNewCommands();
+    var commands = this.commandChannel.getCommands();
 
     newState.rotation[0] += commands.rollClockwise;
     newState.rotation[1] += commands.pitchUpDown;

@@ -22,7 +22,7 @@ define(["CameraOperator"], function(CameraOperator) {
       });
 
       this.commandChannel = {
-        getNewCommands: function() {
+        getCommands: function() {
           return commands;
         }
       };

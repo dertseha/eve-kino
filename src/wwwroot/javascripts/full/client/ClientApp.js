@@ -454,12 +454,8 @@ define('controls/CommandChannel',[], function() {
     this.commands[actionName] = intensity;
   };
 
-  CommandChannel.prototype.getNewCommands = function() {
-    var commands = this.commands;
-
-    this.resetCommands();
-
-    return commands;
+  CommandChannel.prototype.getCommands = function() {
+    return this.commands;
   };
 
   return CommandChannel;
@@ -598,7 +594,7 @@ define('CameraOperator',[], function() {
 
   CameraOperator.prototype.getCameraStateData = function(lastState) {
     var newState = lastState;
-    var commands = this.commandChannel.getNewCommands();
+    var commands = this.commandChannel.getCommands();
 
     newState.rotation[0] += commands.rollClockwise;
     newState.rotation[1] += commands.pitchUpDown;

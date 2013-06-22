@@ -41,14 +41,14 @@ define(["Director"], function(Director) {
       "should provide commands": function() {
         var result = this.director.getCommandChannel("user", []);
 
-        assert.isFunction(result.getNewCommands);
+        assert.isFunction(result.getCommands);
       },
 
       "should provide zero commands for requested actions": function() {
         var action1 = "moveLeftRight";
         var action2 = "zoomInOut";
         var channel = this.director.getCommandChannel("user", [action1, action2]);
-        var commands = channel.getNewCommands();
+        var commands = channel.getCommands();
         var expected = {
           moveLeftRight: 0.0,
           zoomInOut: 0.0
@@ -90,22 +90,9 @@ define(["Director"], function(Director) {
 
         inputChannel.setIntensity("dpadX", expected);
 
-        var result = commandChannel.getNewCommands().moveLeftRight;
+        var result = commandChannel.getCommands().moveLeftRight;
 
         assert.equals(result, expected);
-      },
-
-      "should have commands to be reset after query": function() {
-        var inputChannel = this.director.getInputChannel("gamepad");
-        var commandChannel = this.director.getCommandChannel("actor", ["moveLeftRight"]);
-        var expected = 0.5;
-
-        inputChannel.setIntensity("dpadX", expected);
-
-        commandChannel.getNewCommands();
-        var result = commandChannel.getNewCommands().moveLeftRight;
-
-        assert.equals(result, 0.0);
       }
     }
 
