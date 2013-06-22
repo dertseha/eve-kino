@@ -37,6 +37,16 @@ define(["module", "angular", "TestController", "3d/SceneProducer", "Resources", 
     }, {
       inputName: "RIGHT_STICK_X"
     });
+    director.addBinding({
+      actionName: "pitchUpDown"
+    }, {
+      inputName: "RIGHT_STICK_Y"
+    });
+    director.addBinding({
+      actionName: "rollClockwise"
+    }, {
+      inputName: "LEFT_STICK_X"
+    });
 
     var gamepadListener = {
       onGamepadDisconnected: function() {},

@@ -74,7 +74,7 @@ define('3d/Helper',["lib/gl-matrix"], function(glMatrix) {
   var viewRotations = {
     rollClockwise: 1.0,
     pitchUp: -1.0,
-    yawRight: 1.0
+    yawRight: -1.0
   };
   var modelDirections = {
     forward: 1.0,
@@ -579,7 +579,7 @@ A camera operator handles a camera when directed to
 @module Client
 @class Director
 */
-define('CameraOperator',[], function() {
+define('CameraOperator',["3d/Helper"], function(Helper) {
   
 
   var actionNames = ["pitchUpDown", "rollClockwise", "yawRightLeft", "moveUpDown", "moveForwardBackward", "moveRightLeft"];
@@ -596,9 +596,9 @@ define('CameraOperator',[], function() {
     var newState = lastState;
     var commands = this.commandChannel.getCommands();
 
-    newState.rotation[0] += commands.rollClockwise;
-    newState.rotation[1] += commands.pitchUpDown;
-    newState.rotation[2] += commands.yawRightLeft;
+    newState.rotation[0] += commands.rollClockwise * Helper.VIEW_ROTATION_ROLL_CLOCKWISE * 0.02;
+    newState.rotation[1] += commands.pitchUpDown * Helper.VIEW_ROTATION_PITCH_UP * 0.02;
+    newState.rotation[2] += commands.yawRightLeft * Helper.VIEW_ROTATION_YAW_RIGHT * 0.02;
 
     return newState;
   };
@@ -779,6 +779,16 @@ define('ClientApp',["module", "angular", "TestController", "3d/SceneProducer", "
       actionName: "yawRightLeft"
     }, {
       inputName: "RIGHT_STICK_X"
+    });
+    director.addBinding({
+      actionName: "pitchUpDown"
+    }, {
+      inputName: "RIGHT_STICK_Y"
+    });
+    director.addBinding({
+      actionName: "rollClockwise"
+    }, {
+      inputName: "LEFT_STICK_X"
     });
 
     var gamepadListener = {

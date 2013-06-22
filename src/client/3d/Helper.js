@@ -16,7 +16,7 @@ define(["lib/gl-matrix"], function(glMatrix) {
   var viewRotations = {
     rollClockwise: 1.0,
     pitchUp: -1.0,
-    yawRight: 1.0
+    yawRight: -1.0
   };
   var modelDirections = {
     forward: 1.0,

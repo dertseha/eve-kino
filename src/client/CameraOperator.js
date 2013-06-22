@@ -4,7 +4,7 @@ A camera operator handles a camera when directed to
 @module Client
 @class Director
 */
-define([], function() {
+define(["3d/Helper"], function(Helper) {
   "use strict";
 
   var actionNames = ["pitchUpDown", "rollClockwise", "yawRightLeft", "moveUpDown", "moveForwardBackward", "moveRightLeft"];
@@ -21,9 +21,9 @@ define([], function() {
     var newState = lastState;
     var commands = this.commandChannel.getCommands();
 
-    newState.rotation[0] += commands.rollClockwise;
-    newState.rotation[1] += commands.pitchUpDown;
-    newState.rotation[2] += commands.yawRightLeft;
+    newState.rotation[0] += commands.rollClockwise * Helper.VIEW_ROTATION_ROLL_CLOCKWISE * 0.02;
+    newState.rotation[1] += commands.pitchUpDown * Helper.VIEW_ROTATION_PITCH_UP * 0.02;
+    newState.rotation[2] += commands.yawRightLeft * Helper.VIEW_ROTATION_YAW_RIGHT * 0.02;
 
     return newState;
   };
