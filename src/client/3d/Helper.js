@@ -55,13 +55,6 @@ define(["lib/gl-matrix"], function(glMatrix) {
     */
     degreeToRad: function(degrees) {
       return degrees * oneDegreeInRad;
-    },
-
-    rotateQuaternion: function(quat, axes) {
-      axes.forEach(function(axis) {
-        glMatrix.quat4.fromAngleAxis(axis.rad, axis.vector, tempQuat);
-        glMatrix.quat4.multiply(tempQuat, quat, quat);
-      });
     }
   };
 

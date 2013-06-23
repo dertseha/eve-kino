@@ -68,12 +68,34 @@ define(["module", "angular", "TestController", "3d/SceneProducer", "Resources", 
     director.addBinding({
       actionName: "moveForward"
     }, {
-      inputName: "LEFT_STICK_Y_NEG"
+      inputName: "RB"
     });
     director.addBinding({
       actionName: "moveBackward"
     }, {
-      inputName: "LEFT_STICK_Y_POS"
+      inputName: "LB"
+    });
+
+    director.addBinding({
+      actionName: "moveLeft"
+    }, {
+      inputName: "X"
+    });
+    director.addBinding({
+      actionName: "moveRight"
+    }, {
+      inputName: "B"
+    });
+
+    director.addBinding({
+      actionName: "moveUp"
+    }, {
+      inputName: "Y"
+    });
+    director.addBinding({
+      actionName: "moveDown"
+    }, {
+      inputName: "A"
     });
 
     var gamepadListener = {

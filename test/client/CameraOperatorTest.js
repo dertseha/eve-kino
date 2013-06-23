@@ -3,11 +3,13 @@ define(["CameraOperator"], function(CameraOperator) {
   "use strict";
 
   var assert = buster.assert;
+  var refute = buster.refute;
 
   function createEmptyCameraState() {
     var cameraState = {
       position: [0, 0, 0],
-      rotation: [0, 0, 0, 1]
+      rotation: [0, 0, 0, 1],
+      modelRotation: [0, 0, 0, 1]
     };
 
     return cameraState;
@@ -44,7 +46,7 @@ define(["CameraOperator"], function(CameraOperator) {
 
       var result = this.operator.getCameraStateData(this.cameraState);
 
-      assert.equals(result.position, [-0.01, -0.02, 0.03]);
+      refute.equals(result.position, [0, 0, 0]);
     }
   });
 });

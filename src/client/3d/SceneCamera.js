@@ -14,6 +14,7 @@ define(["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
     this.farPlane = 100000;
 
     this.rotation = glMatrix.quat4.identity();
+    this.modelRotation = glMatrix.quat4.identity();
     this.position = glMatrix.vec3.create();
     this.viewOffset = glMatrix.vec3.create();
 
@@ -59,6 +60,7 @@ define(["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
 
     result.position = this.getPosition(result.position);
     result.rotation = this.getRotation(result.rotation);
+    result.modelRotation = this.getModelRotation(result.modelRotation);
 
     return result;
   };
@@ -66,6 +68,7 @@ define(["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
   SceneCamera.prototype.setStateData = function(data) {
     glMatrix.vec3.set(data.position, this.position);
     glMatrix.quat4.set(data.rotation, this.rotation);
+    glMatrix.quat4.set(data.modelRotation, this.modelRotation);
     this.onViewChanged();
   };
 
@@ -85,6 +88,14 @@ define(["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
   SceneCamera.prototype.setRotation = function(rotation) {
     glMatrix.quat4.set(rotation, this.rotation);
     this.onViewChanged();
+  };
+
+  SceneCamera.prototype.getModelRotation = function(dest) {
+    return glMatrix.quat4.set(this.modelRotation, dest || [0, 0, 0, 0]);
+  };
+
+  SceneCamera.prototype.setModelRotation = function(rotation) {
+    glMatrix.quat4.set(rotation, this.modelRotation);
   };
 
   return SceneCamera;
