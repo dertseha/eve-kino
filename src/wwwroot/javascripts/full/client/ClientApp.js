@@ -27,34 +27,55 @@ define('TestController',[], function() {
   };
 });
 /**
-The ResourceManager is a wrapper interface over the ccpwgl accessor functions
-(which internally again delegate to the dedicated resource manager)
+The set provides access to all necessary set properties
 
 @module Client
-@class ResourceManager
+@class Set
 */
-define('3d/ResourceManager',["lib/ccpwgl"], function(ccpwgl) {
+define('3d/Set',["lib/ccpwgl"], function(ccpwgl) {
   
 
+  var Set = function(scene, stage, sceneCamera, lightBoard) {
+    this.scene = scene;
+    this.stage = stage;
+    this.sceneCamera = sceneCamera;
+    this.lightBoard = lightBoard;
+  };
+
   /**
-    See ccpwgl.setResourcePath()
-
-    @method setResourcePath
-    @param {string} namespace Resource namespace.
-    @param {string} url URL to resource root. Needs to have a trailing slash.
-    @return {ResourceManager} this instance
+    This method registers a callback that is called before a new picture is
+    rendered.
+    @method setPreRenderCallback
+    @param callback {function() void} the function to call for each new picture
   */
-  var setResourcePath = function(namespace, url) {
-    ccpwgl.setResourcePath(namespace, url);
-
-    return this;
+  Set.prototype.setPreRenderCallback = function(callback) {
+    ccpwgl.onPreRender = callback;
   };
 
-  var manager = {
-    setResourcePath: setResourcePath
+  Set.prototype.getStage = function() {
+    return this.stage;
   };
 
-  return manager;
+  Set.prototype.getSceneCamera = function() {
+    return this.sceneCamera;
+  };
+
+  return Set;
+});
+/**
+The Stage holds all the set pieces and actors
+
+@module Client
+@class Stage
+*/
+define('3d/Stage',[], function() {
+  
+
+  var Stage = function(scene) {
+    this.scene = scene;
+  };
+
+  return Stage;
 });
 /**
 The helper is a static object providing some helper constants and functions.
@@ -221,81 +242,77 @@ define('3d/SceneCamera',["lib/gl-matrix", "3d/Helper"], function(glMatrix, helpe
   return SceneCamera;
 });
 /**
-The Scene is the actual scene wrapper that contains all scene objects
-and the render control.
+The light board provides access to lighting controls
 
 @module Client
-@class Scene
+@class LightBoard
 */
-define('3d/Scene',["lib/ccpwgl", "3d/SceneCamera", "lib/gl-matrix"], function(ccpwgl, SceneCamera, glMatrix) {
+define('3d/LightBoard',[], function() {
   
 
-  var Scene = function() {
-    this.camera = new SceneCamera();
-
-    ccpwgl.setCamera(this.camera);
-
+  var LightBoard = function(scene) {
+    this.scene = scene;
   };
 
-  Scene.prototype.setBackgroundBox = function(resPath) {
-    this.scene = ccpwgl.loadScene(resPath);
-  };
-
-  Scene.prototype.getCamera = function() {
-    return this.camera;
-  };
-
-  /**
-    This method registers a callback that is called before a new picture is
-    rendered.
-    @method setPreRenderCallback
-    @param callback {function() void} the function to call for each new picture
-  */
-  Scene.prototype.setPreRenderCallback = function(callback) {
-    ccpwgl.onPreRender = callback;
-  };
-
-  return Scene;
+  return LightBoard;
 });
 /**
-The SceneProducer is a factory for a scene and provides access to the resource
-manager. 
+The production manager is responsible for creating a set with all necessary
+deparments. 
 
 @module Client
-@class SceneProducer
+@class ProductionManager
 */
-define('3d/SceneProducer',["lib/ccpwgl", "3d/ResourceManager", "3d/Scene"], function(ccpwgl, resourceManager, Scene) {
+define('3d/ProductionManager',["lib/ccpwgl", "3d/Set", "3d/Stage", "3d/SceneCamera", "3d/LightBoard"], function(ccpwgl, Set, Stage, SceneCamera, LightBoard) {
   
 
   var sceneOptions = {
 
   };
 
+  var onSceneCreated = function(scene) {
+    var stage = new Stage(scene);
+    var sceneCamera = new SceneCamera();
+    var lightBoard = new LightBoard(scene);
+
+    ccpwgl.setCamera(sceneCamera);
+
+    return new Set(scene, stage, sceneCamera, lightBoard);
+  };
+
+  var productionManager = function() {
+
+  };
+
   /**
-    @method createScene
-    @return {Scene} a scene object
-    @throws {ccpwgl.NoWebGLError} If no WebGL context is available
+    See ccpwgl.setResourcePath()
+
+    @method setResourcePath
+    @param {string} namespace Resource namespace.
+    @param {string} url URL to resource root. Needs to have a trailing slash.
   */
-  var createScene = function(canvas) {
+  productionManager.setResourcePath = function(namespace, url) {
+    ccpwgl.setResourcePath(namespace, url);
+  };
+
+  productionManager.createSet = function(canvas, backgroundUrl) {
     ccpwgl.initialize(canvas, sceneOptions);
 
-    return new Scene();
+    var scene = ccpwgl.loadScene(backgroundUrl);
+    // TODO: create promise & hook up to onLoaded callback
+
+    return onSceneCreated(scene);
   };
 
-  /**
-    @method getResourceManager
-    @return {ResourceManager} The resource manager for the producer
-  */
-  var getResourceManager = function() {
-    return resourceManager;
+  productionManager.createChromaKeyedSet = function(canvas, backgroundColor) {
+    ccpwgl.initialize(canvas, sceneOptions);
+
+    var scene = ccpwgl.createScene(backgroundColor);
+
+    return onSceneCreated(scene);
   };
 
-  var producer = {
-    createScene: createScene,
-    getResourceManager: getResourceManager
-  };
-
-  return producer;
+  return productionManager;
 });
 /**
 The Stage Manager updates the stage according to the script and/or input
@@ -550,18 +567,6 @@ define('CameraOperator',["lib/gl-matrix", "3d/Helper"], function(glMatrix, helpe
       "pitchUp", "pitchDown", "rollClockwise", "rollCounter", "yawRight", "yawLeft",
       "moveUp", "moveDown", "moveForward", "moveBackward", "moveRight", "moveLeft"
   ];
-  var rotationHelper = [{
-      rad: 0.0,
-      vector: helper.VIEW_VECTOR_FORWARD
-    }, {
-      rad: 0.0,
-      vector: helper.VIEW_VECTOR_RIGHT
-    }, {
-      rad: 0.0,
-      vector: helper.VIEW_VECTOR_UP
-    }
-  ];
-
   var tempQuat = glMatrix.quat4.create();
   var tempVec3 = glMatrix.vec3.create();
 
@@ -776,7 +781,7 @@ ClientApp is the primary entry point for the main client side application
 @module Client
 @class ClientApp
 */
-define('ClientApp',["module", "angular", "TestController", "3d/SceneProducer", "Resources", "controls/GamepadApi"], function(module, angular, testController, sceneProducer, Resources, GamepadApi) {
+define('ClientApp',["module", "angular", "TestController", "3d/ProductionManager", "Resources", "controls/GamepadApi"], function(module, angular, testController, productionManager, Resources, GamepadApi) {
   
 
   var config = module.config();
@@ -786,15 +791,18 @@ define('ClientApp',["module", "angular", "TestController", "3d/SceneProducer", "
 
     appModule.controller("TestController", ["$scope", testController.create(config)]);
 
-    sceneProducer.getResourceManager().setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
+    productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
 
-    var scene = sceneProducer.createScene(mainScreen);
-    scene.setBackgroundBox("res:/dx9/scene/universe/a01_cube.red");
+    var set = productionManager.createSet(mainScreen, "res:/dx9/scene/universe/a01_cube.red");
 
-    var ship = scene.scene.loadShip("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red", undefined);
+    //var sun = scene.scene.loadSun("res:/dx9/model/lensflare/blue.red");
+    //scene.scene.setSunLightColor([0.0, 0.0, 0.0]);
+    //scene.scene.setFog(10, 1000, 0.8, [0.0, 0.3, 0.0]);
+
+    var ship = set.scene.loadShip("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red", undefined);
     ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
 
-    var camera = new Resources.Camera(scene.getCamera());
+    var camera = new Resources.Camera(set.getSceneCamera());
     var director = new Resources.Director();
     var camCommands = director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
     var cameraOperator = new Resources.CameraOperator(camCommands);
@@ -883,9 +891,7 @@ define('ClientApp',["module", "angular", "TestController", "3d/SceneProducer", "
     });
     var gotGamepads = gamepadApi.init();
 
-    //var director = new Resources.Director();
-
-    scene.setPreRenderCallback(function() {
+    set.setPreRenderCallback(function() {
       // TODO: move this to some general time keeper
 
       // stageManager.updateStage() // perform blocking... by stage manager?
