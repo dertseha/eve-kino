@@ -11,18 +11,6 @@ define(["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
       "pitchUp", "pitchDown", "rollClockwise", "rollCounter", "yawRight", "yawLeft",
       "moveUp", "moveDown", "moveForward", "moveBackward", "moveRight", "moveLeft"
   ];
-  var rotationHelper = [{
-      rad: 0.0,
-      vector: helper.VIEW_VECTOR_FORWARD
-    }, {
-      rad: 0.0,
-      vector: helper.VIEW_VECTOR_RIGHT
-    }, {
-      rad: 0.0,
-      vector: helper.VIEW_VECTOR_UP
-    }
-  ];
-
   var tempQuat = glMatrix.quat4.create();
   var tempVec3 = glMatrix.vec3.create();
 
