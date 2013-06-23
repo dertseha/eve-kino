@@ -1,5 +1,5 @@
 /* global buster */
-define(["3d/SceneCamera", "3d/Helper", "lib/gl-matrix"], function(SceneCamera, helper, glMatrix) {
+define(["production/ccp/SceneCamera", "util/GlHelper", "lib/gl-matrix"], function(SceneCamera, helper, glMatrix) {
   "use strict";
 
   var assert = buster.assert;

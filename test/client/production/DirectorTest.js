@@ -1,5 +1,5 @@
 /* global buster */
-define(["Director"], function(Director) {
+define(["production/Director"], function(Director) {
   "use strict";
 
   var assert = buster.assert;

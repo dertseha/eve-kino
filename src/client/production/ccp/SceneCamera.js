@@ -5,7 +5,7 @@ implementation to provide the projection and view matrices.
 @module Client
 @class SceneCamera
 */
-define(["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
+define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
   "use strict";
 
   var SceneCamera = function() {

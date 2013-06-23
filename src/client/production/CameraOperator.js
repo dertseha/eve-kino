@@ -4,7 +4,7 @@ A camera operator handles a camera when directed to
 @module Client
 @class Director
 */
-define(["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
+define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
   "use strict";
 
   var actionNames = [

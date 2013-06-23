@@ -1,5 +1,5 @@
 /* global buster */
-define(["CameraOperator"], function(CameraOperator) {
+define(["production/CameraOperator"], function(CameraOperator) {
   "use strict";
 
   var assert = buster.assert;

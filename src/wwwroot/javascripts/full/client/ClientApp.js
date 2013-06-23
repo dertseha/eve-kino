@@ -32,7 +32,7 @@ The set provides access to all necessary set properties
 @module Client
 @class Set
 */
-define('3d/Set',["lib/ccpwgl"], function(ccpwgl) {
+define('production/ccp/Set',["lib/ccpwgl"], function(ccpwgl) {
   
 
   var Set = function(scene, stage, sceneCamera, lightBoard) {
@@ -68,7 +68,7 @@ The Stage holds all the set pieces and actors
 @module Client
 @class Stage
 */
-define('3d/Stage',[], function() {
+define('production/ccp/Stage',[], function() {
   
 
   var Stage = function(scene) {
@@ -83,7 +83,7 @@ The helper is a static object providing some helper constants and functions.
 @module Client
 @class Helper
 */
-define('3d/Helper',["lib/gl-matrix"], function(glMatrix) {
+define('util/GlHelper',["lib/gl-matrix"], function(glMatrix) {
   
 
   var oneDegreeInRad = Math.PI / 180.0;
@@ -146,7 +146,7 @@ implementation to provide the projection and view matrices.
 @module Client
 @class SceneCamera
 */
-define('3d/SceneCamera',["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
+define('production/ccp/SceneCamera',["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
   
 
   var SceneCamera = function() {
@@ -247,7 +247,7 @@ The light board provides access to lighting controls
 @module Client
 @class LightBoard
 */
-define('3d/LightBoard',[], function() {
+define('production/ccp/LightBoard',[], function() {
   
 
   var LightBoard = function(scene) {
@@ -263,7 +263,7 @@ deparments.
 @module Client
 @class ProductionManager
 */
-define('3d/ProductionManager',["lib/ccpwgl", "3d/Set", "3d/Stage", "3d/SceneCamera", "3d/LightBoard"], function(ccpwgl, Set, Stage, SceneCamera, LightBoard) {
+define('production/ccp/ProductionManager',["lib/ccpwgl", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"], function(ccpwgl, Set, Stage, SceneCamera, LightBoard) {
   
 
   var sceneOptions = {
@@ -320,7 +320,7 @@ The Stage Manager updates the stage according to the script and/or input
 @module Client
 @class StageManager
 */
-define('StageManager',[], function() {
+define('production/StageManager',[], function() {
   
 
   var StageManager = function() {
@@ -343,7 +343,7 @@ The camera combines the scene camera (viewport) with an operator and a film.
 @module Client
 @class Camera
 */
-define('Camera',[], function() {
+define('production/Camera',[], function() {
   
 
   var nullOperator = {
@@ -472,7 +472,7 @@ A director issues directions
 @module Client
 @class Director
 */
-define('Director',["controls/CommandChannel", "controls/InputChannel"], function(CommandChannel, InputChannel) {
+define('production/Director',["controls/CommandChannel", "controls/InputChannel"], function(CommandChannel, InputChannel) {
   
 
   var Director = function() {
@@ -560,7 +560,7 @@ A camera operator handles a camera when directed to
 @module Client
 @class Director
 */
-define('CameraOperator',["lib/gl-matrix", "3d/Helper"], function(glMatrix, helper) {
+define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
   
 
   var actionNames = [
@@ -628,7 +628,7 @@ define('CameraOperator',["lib/gl-matrix", "3d/Helper"], function(glMatrix, helpe
 @module Client
 @class Resource
 */
-define('Resources',["StageManager", "Camera", "Director", "CameraOperator"], function(StageManager, Camera, Director, CameraOperator) {
+define('production/Resources',["production/StageManager", "production/Camera", "production/Director", "production/CameraOperator"], function(StageManager, Camera, Director, CameraOperator) {
   
 
   var resources = {
@@ -781,7 +781,7 @@ ClientApp is the primary entry point for the main client side application
 @module Client
 @class ClientApp
 */
-define('ClientApp',["module", "angular", "TestController", "3d/ProductionManager", "Resources", "controls/GamepadApi"], function(module, angular, testController, productionManager, Resources, GamepadApi) {
+define('ClientApp',["module", "angular", "TestController", "production/ccp/ProductionManager", "production/Resources", "controls/GamepadApi"], function(module, angular, testController, productionManager, Resources, GamepadApi) {
   
 
   var config = module.config();

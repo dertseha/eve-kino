@@ -5,7 +5,7 @@ deparments.
 @module Client
 @class ProductionManager
 */
-define(["lib/ccpwgl", "3d/Set", "3d/Stage", "3d/SceneCamera", "3d/LightBoard"], function(ccpwgl, Set, Stage, SceneCamera, LightBoard) {
+define(["lib/ccpwgl", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"], function(ccpwgl, Set, Stage, SceneCamera, LightBoard) {
   "use strict";
 
   var sceneOptions = {

@@ -6,7 +6,7 @@ ClientApp is the primary entry point for the main client side application
 @module Client
 @class ClientApp
 */
-define(["module", "angular", "TestController", "3d/ProductionManager", "Resources", "controls/GamepadApi"], function(module, angular, testController, productionManager, Resources, GamepadApi) {
+define(["module", "angular", "TestController", "production/ccp/ProductionManager", "production/Resources", "controls/GamepadApi"], function(module, angular, testController, productionManager, Resources, GamepadApi) {
   "use strict";
 
   var config = module.config();
