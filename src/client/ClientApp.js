@@ -30,13 +30,6 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
 
     set.getStage().enter(planetArch);
 
-    var shipArch = new ShipArchetype();
-
-    shipArch.setResourceUrl("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
-
-    set.getStage().enter(shipArch);
-    //ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
-
     var camera = new Resources.Camera(set.getSceneCamera());
     var director = new Resources.Director();
     var camCommands = director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
@@ -44,6 +37,19 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
     var gamepadInput = director.getInputChannel("gamepad");
 
     camera.setOperator(cameraOperator);
+
+    var stageManager = new Resources.StageManager(set.getStage());
+    var shipArch = new ShipArchetype();
+
+    shipArch.setResourceUrl("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
+
+    var shipPromise = set.getStage().enter(shipArch);
+
+    shipPromise.then(function(ship) {
+      var animator = stageManager.getAnimator(ship);
+    });
+    //ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
+
 
     director.addBinding({
       actionName: "yawLeft"
@@ -129,7 +135,7 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
     set.setPreRenderCallback(function() {
       // TODO: move this to some general time keeper
 
-      // stageManager.updateStage() // perform blocking... by stage manager?
+      stageManager.updateStage();
       camera.updateFrame();
       // recordHead.saveStage() // could also be called continuity; done by camera?
 
@@ -145,6 +151,7 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
     productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
 
     var promise = productionManager.createSet(mainScreen, "res:/dx9/scene/universe/a01_cube.red");
+    //var promise = productionManager.createChromaKeyedSet(mainScreen, [0.0, 1.0, 0.0, 1.0]);
 
     promise.then(onSetCreated, function(err) {
       console.log("Init error: " + err);

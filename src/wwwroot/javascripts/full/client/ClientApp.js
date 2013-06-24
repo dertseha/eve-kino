@@ -112,6 +112,11 @@ define('util/GlHelper',["lib/gl-matrix"], function(glMatrix) {
     upward: 1.0,
     rightward: -1.0
   };
+  var modelRotations = {
+    rollClockwise: 1.0,
+    pitchUp: 1.0,
+    yawRight: -1.0
+  };
 
   var tempQuat = glMatrix.quat4.create();
 
@@ -131,6 +136,10 @@ define('util/GlHelper',["lib/gl-matrix"], function(glMatrix) {
     MODEL_DIRECTION_FORWARD: modelDirections.forward,
     MODEL_DIRECTION_UP: modelDirections.upward,
     MODEL_DIRECTION_RIGHT: modelDirections.rightward,
+
+    MODEL_ROTATION_ROLL_CLOCKWISE: modelRotations.rollClockwise,
+    MODEL_ROTATION_PITCH_UP: modelRotations.pitchUp,
+    MODEL_ROTATION_YAW_RIGHT: modelRotations.yawRight,
 
     MODEL_VECTOR_FORWARD: glMatrix.vec3.create([0, 0, modelDirections.forward]),
     MODEL_VECTOR_UP: glMatrix.vec3.create([0, modelDirections.upward, 0]),
@@ -351,25 +360,86 @@ define('production/ccp/ProductionManager',["lib/q", "production/ccp/Set", "produ
 
   return ProductionManager;
 });
+/* global console */
+/**
+An animator is responsible for updating the state of a prop
+
+@module Client
+@class Animator
+*/
+define('production/Animator',["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
+  
+
+  var tempQuat = glMatrix.quat4.create();
+  var tempVec3 = glMatrix.vec3.create();
+
+  var rotateModelOrientation = function(dest, roll, pitch, yaw) {
+    glMatrix.quat4.fromAngleAxis(roll * helper.MODEL_ROTATION_ROLL_CLOCKWISE, helper.MODEL_VECTOR_FORWARD, tempQuat);
+    glMatrix.quat4.multiply(dest, tempQuat, dest);
+    glMatrix.quat4.fromAngleAxis(pitch * helper.MODEL_ROTATION_PITCH_UP, helper.MODEL_VECTOR_RIGHT, tempQuat);
+    glMatrix.quat4.multiply(dest, tempQuat, dest);
+    glMatrix.quat4.fromAngleAxis(yaw * helper.MODEL_ROTATION_YAW_RIGHT, helper.MODEL_VECTOR_UP, tempQuat);
+    glMatrix.quat4.multiply(dest, tempQuat, dest);
+  };
+
+  var Animator = function(prop) {
+    this.prop = prop;
+    this.lastState = null;
+  };
+
+  Animator.prototype.update = function() {
+    var lastState = this.prop.getStateData(this.lastState);
+    var newState = lastState;
+    var roll = 0.00;
+    var pitch = 0.00;
+    var yaw = 0.00;
+    var right = 0.0;
+    var up = 0.0;
+    var forward = 0.0;
+
+    rotateModelOrientation(newState.rotation, roll, pitch, yaw);
+
+    tempVec3[0] = right * helper.MODEL_DIRECTION_RIGHT;
+    tempVec3[1] = up * helper.MODEL_DIRECTION_UP;
+    tempVec3[2] = forward * helper.MODEL_DIRECTION_FORWARD;
+    glMatrix.quat4.multiplyVec3(newState.rotation, tempVec3);
+    newState.position[0] += tempVec3[0];
+    newState.position[1] += tempVec3[1];
+    newState.position[2] += tempVec3[2];
+
+    this.prop.setStateData(newState);
+    this.lastState = lastState;
+  };
+
+  return Animator;
+});
 /**
 The Stage Manager updates the stage according to the script and/or input
 
 @module Client
 @class StageManager
 */
-define('production/StageManager',[], function() {
+define('production/StageManager',["production/Animator"], function(Animator) {
   
 
-  var StageManager = function() {
+  var StageManager = function(stage) {
+    this.stage = stage;
 
+    this.animators = [];
   };
 
   StageManager.prototype.updateStage = function() {
+    this.animators.forEach(function(animator) {
+      animator.update();
+    });
+  };
 
-    // The input from the user can control only one actor and/or the current camera
-    // i.e. actor.update(), camera.update()
-    // the rest comes from the film
+  StageManager.prototype.getAnimator = function(prop) {
+    var animator = new Animator(prop);
 
+    this.animators.push(animator);
+
+    return animator;
   };
 
   return StageManager;
@@ -617,7 +687,7 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
   };
 
   var rotateModelOrientation = function(dest, roll, pitch, yaw) {
-    // TODO: determine the proper rotation factors, see if they match to those of model rotation
+    // After determining the model rotations, I have no idea what logic happens here. It just works.
     glMatrix.quat4.fromAngleAxis(roll * -1, helper.VIEW_VECTOR_FORWARD, tempQuat);
     glMatrix.quat4.multiply(dest, tempQuat, dest);
     glMatrix.quat4.fromAngleAxis(pitch, helper.VIEW_VECTOR_RIGHT, tempQuat);
@@ -816,12 +886,33 @@ The ship wrapper
 @module Client
 @class Ship
 */
-define('production/ccp/res/Ship',[], function() {
+define('production/ccp/res/Ship',["lib/gl-matrix"], function(glMatrix) {
   
 
   var Ship = function(ccpwgl, obj) {
     this.ccpwgl = ccpwgl;
     this.obj = obj;
+
+    this.position = glMatrix.vec3.create();
+    this.rotation = glMatrix.quat4.identity();
+    this.transform = glMatrix.mat4.identity();
+  };
+
+  Ship.prototype.getStateData = function(dest) {
+    var result = dest || {};
+
+    result.position = glMatrix.vec3.set(this.position, result.position || [0, 0, 0]);
+    result.rotation = glMatrix.quat4.set(this.rotation, result.rotation || [0, 0, 0, 1]);
+
+    return result;
+  };
+
+  Ship.prototype.setStateData = function(data) {
+    glMatrix.vec3.set(data.position, this.position);
+    glMatrix.quat4.set(data.rotation, this.rotation);
+
+    glMatrix.mat4.fromRotationTranslation(this.rotation, this.position, this.transform);
+    this.obj.setTransform(this.transform);
   };
 
   return Ship;
@@ -956,13 +1047,6 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
 
     set.getStage().enter(planetArch);
 
-    var shipArch = new ShipArchetype();
-
-    shipArch.setResourceUrl("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
-
-    set.getStage().enter(shipArch);
-    //ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
-
     var camera = new Resources.Camera(set.getSceneCamera());
     var director = new Resources.Director();
     var camCommands = director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
@@ -970,6 +1054,19 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
     var gamepadInput = director.getInputChannel("gamepad");
 
     camera.setOperator(cameraOperator);
+
+    var stageManager = new Resources.StageManager(set.getStage());
+    var shipArch = new ShipArchetype();
+
+    shipArch.setResourceUrl("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
+
+    var shipPromise = set.getStage().enter(shipArch);
+
+    shipPromise.then(function(ship) {
+      var animator = stageManager.getAnimator(ship);
+    });
+    //ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
+
 
     director.addBinding({
       actionName: "yawLeft"
@@ -1055,7 +1152,7 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
     set.setPreRenderCallback(function() {
       // TODO: move this to some general time keeper
 
-      // stageManager.updateStage() // perform blocking... by stage manager?
+      stageManager.updateStage();
       camera.updateFrame();
       // recordHead.saveStage() // could also be called continuity; done by camera?
 
@@ -1071,6 +1168,7 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
     productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
 
     var promise = productionManager.createSet(mainScreen, "res:/dx9/scene/universe/a01_cube.red");
+    //var promise = productionManager.createChromaKeyedSet(mainScreen, [0.0, 1.0, 0.0, 1.0]);
 
     promise.then(onSetCreated, function(err) {
       console.log("Init error: " + err);

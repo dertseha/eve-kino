@@ -23,6 +23,11 @@ define(["lib/gl-matrix"], function(glMatrix) {
     upward: 1.0,
     rightward: -1.0
   };
+  var modelRotations = {
+    rollClockwise: 1.0,
+    pitchUp: 1.0,
+    yawRight: -1.0
+  };
 
   var tempQuat = glMatrix.quat4.create();
 
@@ -42,6 +47,10 @@ define(["lib/gl-matrix"], function(glMatrix) {
     MODEL_DIRECTION_FORWARD: modelDirections.forward,
     MODEL_DIRECTION_UP: modelDirections.upward,
     MODEL_DIRECTION_RIGHT: modelDirections.rightward,
+
+    MODEL_ROTATION_ROLL_CLOCKWISE: modelRotations.rollClockwise,
+    MODEL_ROTATION_PITCH_UP: modelRotations.pitchUp,
+    MODEL_ROTATION_YAW_RIGHT: modelRotations.yawRight,
 
     MODEL_VECTOR_FORWARD: glMatrix.vec3.create([0, 0, modelDirections.forward]),
     MODEL_VECTOR_UP: glMatrix.vec3.create([0, modelDirections.upward, 0]),

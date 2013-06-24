@@ -24,7 +24,7 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
   };
 
   var rotateModelOrientation = function(dest, roll, pitch, yaw) {
-    // TODO: determine the proper rotation factors, see if they match to those of model rotation
+    // After determining the model rotations, I have no idea what logic happens here. It just works.
     glMatrix.quat4.fromAngleAxis(roll * -1, helper.VIEW_VECTOR_FORWARD, tempQuat);
     glMatrix.quat4.multiply(dest, tempQuat, dest);
     glMatrix.quat4.fromAngleAxis(pitch, helper.VIEW_VECTOR_RIGHT, tempQuat);

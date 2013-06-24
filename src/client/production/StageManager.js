@@ -4,19 +4,27 @@ The Stage Manager updates the stage according to the script and/or input
 @module Client
 @class StageManager
 */
-define([], function() {
+define(["production/Animator"], function(Animator) {
   "use strict";
 
-  var StageManager = function() {
+  var StageManager = function(stage) {
+    this.stage = stage;
 
+    this.animators = [];
   };
 
   StageManager.prototype.updateStage = function() {
+    this.animators.forEach(function(animator) {
+      animator.update();
+    });
+  };
 
-    // The input from the user can control only one actor and/or the current camera
-    // i.e. actor.update(), camera.update()
-    // the rest comes from the film
+  StageManager.prototype.getAnimator = function(prop) {
+    var animator = new Animator(prop);
 
+    this.animators.push(animator);
+
+    return animator;
   };
 
   return StageManager;
