@@ -69,12 +69,20 @@ The Stage holds all the set pieces and actors
 @module Client
 @class Stage
 */
-define('production/ccp/Stage',[], function() {
+define('production/ccp/Stage',["lib/q"], function(q) {
   
 
   var Stage = function(ccpwgl, scene) {
     this.ccpwgl = ccpwgl;
     this.scene = scene;
+  };
+
+  Stage.prototype.enter = function(archetype) {
+    var deferred = q.defer();
+
+    archetype.request(this.ccpwgl, this.scene, deferred);
+
+    return deferred.promise;
   };
 
   return Stage;
@@ -802,6 +810,120 @@ define('controls/GamepadApi',["lib/gamepad", "controls/Gamepad"], function(Gamep
 
   return GamepadApi;
 });
+/**
+The ship wrapper
+
+@module Client
+@class Ship
+*/
+define('production/ccp/res/Ship',[], function() {
+  
+
+  var Ship = function(ccpwgl, obj) {
+    this.ccpwgl = ccpwgl;
+    this.obj = obj;
+  };
+
+  return Ship;
+});
+/**
+An archetype for ships
+
+@module Client
+@class ShipArchetype
+*/
+define('production/ccp/res/ShipArchetype',["production/ccp/res/Ship"], function(Ship) {
+  
+
+  var ShipArchetype = function() {
+    this.resourceUrl = "";
+  };
+
+  ShipArchetype.prototype.request = function(ccpwgl, scene, deferred) {
+    return scene.loadShip(this.resourceUrl, function() {
+      deferred.resolve(new Ship(ccpwgl, this));
+    });
+  };
+
+  ShipArchetype.prototype.setResourceUrl = function(value) {
+    this.resourceUrl = value;
+
+    return this;
+  };
+
+  return ShipArchetype;
+});
+/**
+The planet wrapper
+
+@module Client
+@class Planet
+*/
+define('production/ccp/res/Planet',[], function() {
+  
+
+  var Planet = function(ccpwgl, obj) {
+    this.ccpwgl = ccpwgl;
+    this.obj = obj;
+  };
+
+  return Planet;
+});
+/**
+An archetype for planets
+
+@module Client
+@class PlanetArchetype
+*/
+define('production/ccp/res/PlanetArchetype',["production/ccp/res/Planet"], function(Planet) {
+  
+
+  var PlanetArchetype = function() {
+    this.resourceUrl = "";
+    this.itemId = 0;
+    this.atmosphereUrl = null;
+    this.heightMap1Url = null;
+    this.heightMap2Url = null;
+  };
+
+  PlanetArchetype.prototype.request = function(ccpwgl, scene, deferred) {
+    var obj = scene.loadPlanet(this.itemId, this.resourceUrl, this.atmosphereUrl, this.heightMap1Url, this.heightMap2Url);
+
+    deferred.resolve(new Planet(ccpwgl, scene, obj));
+  };
+
+  PlanetArchetype.prototype.setItemId = function(value) {
+    this.itemId = value;
+
+    return this;
+  };
+
+  PlanetArchetype.prototype.setResourceUrl = function(value) {
+    this.resourceUrl = value;
+
+    return this;
+  };
+
+  PlanetArchetype.prototype.setAtomsphereUrl = function(value) {
+    this.atmosphereUrl = value;
+
+    return this;
+  };
+
+  PlanetArchetype.prototype.setHeightMap1Url = function(value) {
+    this.heightMap1Url = value;
+
+    return this;
+  };
+
+  PlanetArchetype.prototype.setHeightMap2Url = function(value) {
+    this.heightMap2Url = value;
+
+    return this;
+  };
+
+  return PlanetArchetype;
+});
 /*jshint maxparams:100 */
 /* global console */
 
@@ -811,9 +933,11 @@ ClientApp is the primary entry point for the main client side application
 @module Client
 @class ClientApp
 */
-define('ClientApp',["module", "angular", "lib/ccpwgl", "TestController", "production/ccp/ProductionManager", "production/Resources", "controls/GamepadApi"],
+define('ClientApp',["module", "angular", "lib/ccpwgl", "TestController", "production/ccp/ProductionManager", "production/Resources", "controls/GamepadApi",
+    "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype"
+],
 
-function(module, angular, ccpwgl, testController, ProductionManager, Resources, GamepadApi) {
+function(module, angular, ccpwgl, testController, ProductionManager, Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
   
 
   var config = module.config();
@@ -823,8 +947,21 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
     //scene.scene.setSunLightColor([0.0, 0.0, 0.0]);
     //scene.scene.setFog(10, 1000, 0.8, [0.0, 0.3, 0.0]);
 
-    var ship = set.scene.loadShip("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red", undefined);
-    ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
+    var planetArch = new PlanetArchetype();
+
+    planetArch.setItemId(40000100);
+    planetArch.setResourceUrl("res:/dx9/model/WorldObject/Planet/Template/Gas/P_GasGiant_12.red");
+    planetArch.setHeightMap1Url("res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png");
+    planetArch.setHeightMap2Url("res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
+
+    set.getStage().enter(planetArch);
+
+    var shipArch = new ShipArchetype();
+
+    shipArch.setResourceUrl("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
+
+    set.getStage().enter(shipArch);
+    //ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
 
     var camera = new Resources.Camera(set.getSceneCamera());
     var director = new Resources.Director();

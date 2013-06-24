@@ -46,7 +46,7 @@ define(["lib/ccpwgl", "production/ccp/ProductionManager"], function(ccpwgl, Prod
       var backgroundUrl = "test:stuff";
 
       ccpwgl.loadScene = function(url, callback) {
-        setTimeout(callback, 100);
+        setTimeout(callback, 10);
       };
 
       var promise = this.productionManager.createSet(canvas, backgroundUrl);
