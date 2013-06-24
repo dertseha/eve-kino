@@ -7,7 +7,8 @@ The Stage holds all the set pieces and actors
 define([], function() {
   "use strict";
 
-  var Stage = function(scene) {
+  var Stage = function(ccpwgl, scene) {
+    this.ccpwgl = ccpwgl;
     this.scene = scene;
   };
 

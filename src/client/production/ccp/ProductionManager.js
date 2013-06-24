@@ -1,3 +1,5 @@
+/*jshint maxparams:100 */
+
 /**
 The production manager is responsible for creating a set with all necessary
 deparments. 
@@ -5,25 +7,44 @@ deparments.
 @module Client
 @class ProductionManager
 */
-define(["lib/ccpwgl", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"], function(ccpwgl, Set, Stage, SceneCamera, LightBoard) {
+define(["lib/q", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"], function(q, Set, Stage, SceneCamera, LightBoard) {
   "use strict";
 
   var sceneOptions = {
 
   };
 
-  var onSceneCreated = function(scene) {
-    var stage = new Stage(scene);
+  var onSceneCreated = function(ccpwgl, scene) {
+    var stage = new Stage(ccpwgl, scene);
     var sceneCamera = new SceneCamera();
-    var lightBoard = new LightBoard(scene);
+    var lightBoard = new LightBoard(ccpwgl, scene);
 
     ccpwgl.setCamera(sceneCamera);
 
-    return new Set(scene, stage, sceneCamera, lightBoard);
+    return new Set(ccpwgl, scene, stage, sceneCamera, lightBoard);
   };
 
-  var productionManager = function() {
+  var createSceneDeferred = function(ccpwgl, canvas, strategy) {
+    var deferred = q.defer();
+    var resolveCallback = function(scene) {
+      var set = onSceneCreated(ccpwgl, scene);
 
+      deferred.resolve(set);
+    };
+
+    try {
+      ccpwgl.initialize(canvas, sceneOptions);
+
+      strategy(resolveCallback);
+    } catch (ex) {
+      deferred.reject(ex);
+    }
+
+    return deferred.promise;
+  };
+
+  var ProductionManager = function(ccpwgl) {
+    this.ccpwgl = ccpwgl;
   };
 
   /**
@@ -33,26 +54,31 @@ define(["lib/ccpwgl", "production/ccp/Set", "production/ccp/Stage", "production/
     @param {string} namespace Resource namespace.
     @param {string} url URL to resource root. Needs to have a trailing slash.
   */
-  productionManager.setResourcePath = function(namespace, url) {
-    ccpwgl.setResourcePath(namespace, url);
+  ProductionManager.prototype.setResourcePath = function(namespace, url) {
+    this.ccpwgl.setResourcePath(namespace, url);
   };
 
-  productionManager.createSet = function(canvas, backgroundUrl) {
-    ccpwgl.initialize(canvas, sceneOptions);
+  ProductionManager.prototype.createSet = function(canvas, backgroundUrl) {
+    var ccpwgl = this.ccpwgl;
 
-    var scene = ccpwgl.loadScene(backgroundUrl);
-    // TODO: create promise & hook up to onLoaded callback
+    return createSceneDeferred(ccpwgl, canvas, function(callback) {
+      var onLoad = function() {
+        callback(this);
+      };
 
-    return onSceneCreated(scene);
+      ccpwgl.loadScene(backgroundUrl, onLoad);
+    });
   };
 
-  productionManager.createChromaKeyedSet = function(canvas, backgroundColor) {
-    ccpwgl.initialize(canvas, sceneOptions);
+  ProductionManager.prototype.createChromaKeyedSet = function(canvas, backgroundColor) {
+    var ccpwgl = this.ccpwgl;
 
-    var scene = ccpwgl.createScene(backgroundColor);
+    return createSceneDeferred(ccpwgl, canvas, function(callback) {
+      var scene = ccpwgl.createScene(backgroundColor);
 
-    return onSceneCreated(scene);
+      callback(scene);
+    });
   };
 
-  return productionManager;
+  return ProductionManager;
 });

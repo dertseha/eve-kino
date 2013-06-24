@@ -1,4 +1,5 @@
 /*jshint maxparams:100 */
+/* global console */
 
 /**
 ClientApp is the primary entry point for the main client side application
@@ -6,20 +7,14 @@ ClientApp is the primary entry point for the main client side application
 @module Client
 @class ClientApp
 */
-define(["module", "angular", "TestController", "production/ccp/ProductionManager", "production/Resources", "controls/GamepadApi"], function(module, angular, testController, productionManager, Resources, GamepadApi) {
+define(["module", "angular", "lib/ccpwgl", "TestController", "production/ccp/ProductionManager", "production/Resources", "controls/GamepadApi"],
+
+function(module, angular, ccpwgl, testController, ProductionManager, Resources, GamepadApi) {
   "use strict";
 
   var config = module.config();
 
-  var main = function(mainScreen) {
-    var appModule = angular.module("ClientApp", []);
-
-    appModule.controller("TestController", ["$scope", testController.create(config)]);
-
-    productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
-
-    var set = productionManager.createSet(mainScreen, "res:/dx9/scene/universe/a01_cube.red");
-
+  var onSetCreated = function(set) {
     //var sun = scene.scene.loadSun("res:/dx9/model/lensflare/blue.red");
     //scene.scene.setSunLightColor([0.0, 0.0, 0.0]);
     //scene.scene.setFog(10, 1000, 0.8, [0.0, 0.3, 0.0]);
@@ -124,6 +119,22 @@ define(["module", "angular", "TestController", "production/ccp/ProductionManager
       // recordHead.saveStage() // could also be called continuity; done by camera?
 
     });
+  };
+
+  var main = function(mainScreen) {
+    var appModule = angular.module("ClientApp", []);
+
+    appModule.controller("TestController", ["$scope", testController.create(config)]);
+
+    var productionManager = new ProductionManager(ccpwgl);
+    productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
+
+    var promise = productionManager.createSet(mainScreen, "res:/dx9/scene/universe/a01_cube.red");
+
+    promise.then(onSetCreated, function(err) {
+      console.log("Init error: " + err);
+    });
+
 
     return [appModule.name];
   };

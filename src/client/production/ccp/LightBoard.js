@@ -7,7 +7,8 @@ The light board provides access to lighting controls
 define([], function() {
   "use strict";
 
-  var LightBoard = function(scene) {
+  var LightBoard = function(ccpwgl, scene) {
+    this.ccpwgl = ccpwgl;
     this.scene = scene;
   };
 

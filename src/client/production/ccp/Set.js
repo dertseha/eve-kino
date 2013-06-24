@@ -4,10 +4,11 @@ The set provides access to all necessary set properties
 @module Client
 @class Set
 */
-define(["lib/ccpwgl"], function(ccpwgl) {
+define([], function() {
   "use strict";
 
-  var Set = function(scene, stage, sceneCamera, lightBoard) {
+  var Set = function(ccpwgl, scene, stage, sceneCamera, lightBoard) {
+    this.ccpwgl = ccpwgl;
     this.scene = scene;
     this.stage = stage;
     this.sceneCamera = sceneCamera;
@@ -21,7 +22,7 @@ define(["lib/ccpwgl"], function(ccpwgl) {
     @param callback {function() void} the function to call for each new picture
   */
   Set.prototype.setPreRenderCallback = function(callback) {
-    ccpwgl.onPreRender = callback;
+    this.ccpwgl.onPreRender = callback;
   };
 
   Set.prototype.getStage = function() {

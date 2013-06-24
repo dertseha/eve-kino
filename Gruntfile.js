@@ -33,7 +33,7 @@ module.exports = function(grunt) {
 
           modules: [{
               name: "ClientApp",
-              exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js"]
+              exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js"]
             }
           ],
           dir: "build/client/full",
@@ -47,7 +47,7 @@ module.exports = function(grunt) {
 
           modules: [{
               name: "ClientApp",
-              exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js"]
+              exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js"]
             }
           ],
           dir: "build/client/min",

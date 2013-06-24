@@ -32,10 +32,11 @@ The set provides access to all necessary set properties
 @module Client
 @class Set
 */
-define('production/ccp/Set',["lib/ccpwgl"], function(ccpwgl) {
+define('production/ccp/Set',[], function() {
   
 
-  var Set = function(scene, stage, sceneCamera, lightBoard) {
+  var Set = function(ccpwgl, scene, stage, sceneCamera, lightBoard) {
+    this.ccpwgl = ccpwgl;
     this.scene = scene;
     this.stage = stage;
     this.sceneCamera = sceneCamera;
@@ -49,7 +50,7 @@ define('production/ccp/Set',["lib/ccpwgl"], function(ccpwgl) {
     @param callback {function() void} the function to call for each new picture
   */
   Set.prototype.setPreRenderCallback = function(callback) {
-    ccpwgl.onPreRender = callback;
+    this.ccpwgl.onPreRender = callback;
   };
 
   Set.prototype.getStage = function() {
@@ -71,7 +72,8 @@ The Stage holds all the set pieces and actors
 define('production/ccp/Stage',[], function() {
   
 
-  var Stage = function(scene) {
+  var Stage = function(ccpwgl, scene) {
+    this.ccpwgl = ccpwgl;
     this.scene = scene;
   };
 
@@ -250,12 +252,15 @@ The light board provides access to lighting controls
 define('production/ccp/LightBoard',[], function() {
   
 
-  var LightBoard = function(scene) {
+  var LightBoard = function(ccpwgl, scene) {
+    this.ccpwgl = ccpwgl;
     this.scene = scene;
   };
 
   return LightBoard;
 });
+/*jshint maxparams:100 */
+
 /**
 The production manager is responsible for creating a set with all necessary
 deparments. 
@@ -263,25 +268,44 @@ deparments.
 @module Client
 @class ProductionManager
 */
-define('production/ccp/ProductionManager',["lib/ccpwgl", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"], function(ccpwgl, Set, Stage, SceneCamera, LightBoard) {
+define('production/ccp/ProductionManager',["lib/q", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"], function(q, Set, Stage, SceneCamera, LightBoard) {
   
 
   var sceneOptions = {
 
   };
 
-  var onSceneCreated = function(scene) {
-    var stage = new Stage(scene);
+  var onSceneCreated = function(ccpwgl, scene) {
+    var stage = new Stage(ccpwgl, scene);
     var sceneCamera = new SceneCamera();
-    var lightBoard = new LightBoard(scene);
+    var lightBoard = new LightBoard(ccpwgl, scene);
 
     ccpwgl.setCamera(sceneCamera);
 
-    return new Set(scene, stage, sceneCamera, lightBoard);
+    return new Set(ccpwgl, scene, stage, sceneCamera, lightBoard);
   };
 
-  var productionManager = function() {
+  var createSceneDeferred = function(ccpwgl, canvas, strategy) {
+    var deferred = q.defer();
+    var resolveCallback = function(scene) {
+      var set = onSceneCreated(ccpwgl, scene);
 
+      deferred.resolve(set);
+    };
+
+    try {
+      ccpwgl.initialize(canvas, sceneOptions);
+
+      strategy(resolveCallback);
+    } catch (ex) {
+      deferred.reject(ex);
+    }
+
+    return deferred.promise;
+  };
+
+  var ProductionManager = function(ccpwgl) {
+    this.ccpwgl = ccpwgl;
   };
 
   /**
@@ -291,28 +315,33 @@ define('production/ccp/ProductionManager',["lib/ccpwgl", "production/ccp/Set", "
     @param {string} namespace Resource namespace.
     @param {string} url URL to resource root. Needs to have a trailing slash.
   */
-  productionManager.setResourcePath = function(namespace, url) {
-    ccpwgl.setResourcePath(namespace, url);
+  ProductionManager.prototype.setResourcePath = function(namespace, url) {
+    this.ccpwgl.setResourcePath(namespace, url);
   };
 
-  productionManager.createSet = function(canvas, backgroundUrl) {
-    ccpwgl.initialize(canvas, sceneOptions);
+  ProductionManager.prototype.createSet = function(canvas, backgroundUrl) {
+    var ccpwgl = this.ccpwgl;
 
-    var scene = ccpwgl.loadScene(backgroundUrl);
-    // TODO: create promise & hook up to onLoaded callback
+    return createSceneDeferred(ccpwgl, canvas, function(callback) {
+      var onLoad = function() {
+        callback(this);
+      };
 
-    return onSceneCreated(scene);
+      ccpwgl.loadScene(backgroundUrl, onLoad);
+    });
   };
 
-  productionManager.createChromaKeyedSet = function(canvas, backgroundColor) {
-    ccpwgl.initialize(canvas, sceneOptions);
+  ProductionManager.prototype.createChromaKeyedSet = function(canvas, backgroundColor) {
+    var ccpwgl = this.ccpwgl;
 
-    var scene = ccpwgl.createScene(backgroundColor);
+    return createSceneDeferred(ccpwgl, canvas, function(callback) {
+      var scene = ccpwgl.createScene(backgroundColor);
 
-    return onSceneCreated(scene);
+      callback(scene);
+    });
   };
 
-  return productionManager;
+  return ProductionManager;
 });
 /**
 The Stage Manager updates the stage according to the script and/or input
@@ -774,6 +803,7 @@ define('controls/GamepadApi',["lib/gamepad", "controls/Gamepad"], function(Gamep
   return GamepadApi;
 });
 /*jshint maxparams:100 */
+/* global console */
 
 /**
 ClientApp is the primary entry point for the main client side application
@@ -781,20 +811,14 @@ ClientApp is the primary entry point for the main client side application
 @module Client
 @class ClientApp
 */
-define('ClientApp',["module", "angular", "TestController", "production/ccp/ProductionManager", "production/Resources", "controls/GamepadApi"], function(module, angular, testController, productionManager, Resources, GamepadApi) {
+define('ClientApp',["module", "angular", "lib/ccpwgl", "TestController", "production/ccp/ProductionManager", "production/Resources", "controls/GamepadApi"],
+
+function(module, angular, ccpwgl, testController, ProductionManager, Resources, GamepadApi) {
   
 
   var config = module.config();
 
-  var main = function(mainScreen) {
-    var appModule = angular.module("ClientApp", []);
-
-    appModule.controller("TestController", ["$scope", testController.create(config)]);
-
-    productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
-
-    var set = productionManager.createSet(mainScreen, "res:/dx9/scene/universe/a01_cube.red");
-
+  var onSetCreated = function(set) {
     //var sun = scene.scene.loadSun("res:/dx9/model/lensflare/blue.red");
     //scene.scene.setSunLightColor([0.0, 0.0, 0.0]);
     //scene.scene.setFog(10, 1000, 0.8, [0.0, 0.3, 0.0]);
@@ -899,6 +923,22 @@ define('ClientApp',["module", "angular", "TestController", "production/ccp/Produ
       // recordHead.saveStage() // could also be called continuity; done by camera?
 
     });
+  };
+
+  var main = function(mainScreen) {
+    var appModule = angular.module("ClientApp", []);
+
+    appModule.controller("TestController", ["$scope", testController.create(config)]);
+
+    var productionManager = new ProductionManager(ccpwgl);
+    productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
+
+    var promise = productionManager.createSet(mainScreen, "res:/dx9/scene/universe/a01_cube.red");
+
+    promise.then(onSetCreated, function(err) {
+      console.log("Init error: " + err);
+    });
+
 
     return [appModule.name];
   };
