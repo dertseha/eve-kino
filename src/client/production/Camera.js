@@ -22,9 +22,6 @@ define([], function() {
       @property lastState buffer object to avoid creating new ones each frame
     */
     this.lastState = null;
-
-    //camera.setPosition([0, 0, -2000.0]);
-
   };
 
   Camera.getNullOperator = function() {
@@ -36,20 +33,9 @@ define([], function() {
   };
 
   Camera.prototype.updateFrame = function() {
-
-    // onPlayback:
-    //   getRotation(), getPosition()
-    // onRecord/Rehearse:
-    //   rotation = Operator.update(currentRotation, recordedRotation)
-    //
-    // recordedState = film.getCameraStateData();
-    // currentState = camera.getStateData();
-    // newState = operator.getCameraStateData({}, currentState, recordedState)
-    // camera.setStateData(newState);
-
     var sceneCamera = this.sceneCamera;
     var lastState = sceneCamera.getStateData(this.lastState);
-    var newState = this.operator.getCameraStateData(lastState);
+    var newState = this.operator.getCameraStateData(sceneCamera.getStateData(), lastState);
 
     sceneCamera.setStateData(newState);
     this.lastState = lastState;

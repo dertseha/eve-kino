@@ -195,9 +195,6 @@ define('production/Camera',[], function() {
       @property lastState buffer object to avoid creating new ones each frame
     */
     this.lastState = null;
-
-    //camera.setPosition([0, 0, -2000.0]);
-
   };
 
   Camera.getNullOperator = function() {
@@ -209,20 +206,9 @@ define('production/Camera',[], function() {
   };
 
   Camera.prototype.updateFrame = function() {
-
-    // onPlayback:
-    //   getRotation(), getPosition()
-    // onRecord/Rehearse:
-    //   rotation = Operator.update(currentRotation, recordedRotation)
-    //
-    // recordedState = film.getCameraStateData();
-    // currentState = camera.getStateData();
-    // newState = operator.getCameraStateData({}, currentState, recordedState)
-    // camera.setStateData(newState);
-
     var sceneCamera = this.sceneCamera;
     var lastState = sceneCamera.getStateData(this.lastState);
-    var newState = this.operator.getCameraStateData(lastState);
+    var newState = this.operator.getCameraStateData(sceneCamera.getStateData(), lastState);
 
     sceneCamera.setStateData(newState);
     this.lastState = lastState;
@@ -423,16 +409,35 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
     glMatrix.quat4.multiply(dest, tempQuat, dest);
   };
 
-  var CameraOperator = function(commandChannel) {
+  var CameraOperator = function(commandChannel, shotList) {
     this.commandChannel = commandChannel;
+    this.shotList = shotList;
+    this.manualMode = true;
   };
 
   CameraOperator.getActionNames = function() {
     return actionNames.slice(0);
   };
 
-  CameraOperator.prototype.getCameraStateData = function(lastState) {
-    var newState = lastState;
+  CameraOperator.prototype.setManualMode = function(on) {
+    this.manualMode = on;
+  };
+
+  CameraOperator.prototype.getCameraStateData = function(newState, lastState) {
+    var recordedState = this.shotList.getFrameData() || newState;
+
+    if (this.manualMode) {
+      newState = this.getNewStateData(newState, lastState, recordedState);
+    } else {
+      newState = recordedState;
+    }
+
+    this.shotList.setFrameData(newState);
+
+    return newState;
+  };
+
+  CameraOperator.prototype.getNewStateData = function(newState, lastState, recordedState) {
     var commands = this.commandChannel.getCommands();
     var roll = (commands.rollClockwise - commands.rollCounter) * 0.02;
     var pitch = (commands.pitchUp - commands.pitchDown) * 0.02;
@@ -742,6 +747,65 @@ define('production/ccp/res/PlanetArchetype',["production/ccp/res/Planet"], funct
 
   return PlanetArchetype;
 });
+/**
+A track stores data for one thing in a recording
+
+@module Client
+@class Track
+*/
+define('production/Track',[], function() {
+  
+
+  var Track = function(data) {
+    this.data = data;
+    this.currentFrame = 0;
+  };
+
+  Track.prototype.setCurrentFrame = function(index) {
+    this.currentFrame = index;
+  };
+
+  Track.prototype.getFrameData = function() {
+    var data = null;
+    var dataLength = this.data.length;
+
+    if (dataLength > 0) {
+      data = (dataLength > this.currentFrame) ? this.data[this.currentFrame] : this.data[dataLength - 1];
+    }
+
+    return data;
+  };
+
+  Track.prototype.setRecording = function(state) {
+    this.recording = state;
+  };
+
+  Track.prototype.setFrameData = function(data) {
+    var dataLength = this.data.length;
+
+    if (this.recording) {
+      if (dataLength < this.currentFrame) {
+        if (dataLength > 0) {
+          this.pushFrameUntilCurrentIndex(this.data[dataLength - 1]);
+        } else {
+          this.pushFrameUntilCurrentIndex(data);
+        }
+      }
+      this.data[this.currentFrame] = data;
+    }
+  };
+
+  Track.prototype.pushFrameUntilCurrentIndex = function(data) {
+    var dataLength = this.data.length;
+
+    while (dataLength < this.currentFrame) {
+      this.data.push(data);
+      dataLength++;
+    }
+  };
+
+  return Track;
+});
 /* global console */
 /**
 The ApplicationController is the master controller for the app
@@ -749,15 +813,21 @@ The ApplicationController is the master controller for the app
 @module Client
 @class ApplicationController
 */
-define('ApplicationController',["production/Resources", "controls/GamepadApi", "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype"],
+define('ApplicationController',["production/Resources", "controls/GamepadApi", "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/Track"],
 
-function(Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
+function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
   
 
   var initModelView = function(modelView, controller, config) {
     modelView.testName = config.test;
     modelView.record = function() {
-      console.log("inner record");
+      controller.record();
+    };
+    modelView.pause = function() {
+      controller.stop();
+    };
+    modelView.play = function() {
+      controller.play();
     };
 
   };
@@ -781,6 +851,9 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
       modelView.testName = err;
       modelView.$apply();
     });
+
+    this.frameIndex = 0;
+    this.track = new Track([]);
   };
 
   ApplicationController.prototype.testCreatePlanet = function() {
@@ -796,14 +869,15 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
 
   ApplicationController.prototype.testCreateShip = function() {
     var shipArch = new ShipArchetype();
+    var that = this;
 
     shipArch.setResourceUrl("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
 
     var shipPromise = this.set.getStage().enter(shipArch);
 
     shipPromise.then(function(ship) {
-      var animator = this.stageManager.getAnimator(ship);
-      var animCommands = this.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
+      var animator = that.stageManager.getAnimator(ship);
+      var animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
 
       animator.setCommandChannel(animCommands);
     });
@@ -910,7 +984,7 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
     var camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
 
     this.camera = new Resources.Camera(set.getSceneCamera());
-    this.cameraOperator = new Resources.CameraOperator(camCommands);
+    this.cameraOperator = new Resources.CameraOperator(camCommands, this.track);
     this.camera.setOperator(this.cameraOperator);
 
     this.stageManager = new Resources.StageManager(set.getStage());
@@ -924,12 +998,30 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
     set.getSyncSource().setCallback(function() {
       // TODO: move this to some general time keeper
 
+      that.track.setCurrentFrame(that.frameCounter++);
+
       that.stageManager.updateStage();
       that.camera.updateFrame();
-      // recordHead.saveStage() // could also be called continuity; done by camera?
-
     });
 
+  };
+
+  ApplicationController.prototype.record = function() {
+    this.frameCounter = 0;
+    this.cameraOperator.setManualMode(true);
+    this.track.setRecording(true);
+  };
+
+  ApplicationController.prototype.stop = function() {
+    this.frameCounter = 0;
+    this.cameraOperator.setManualMode(true);
+    this.track.setRecording(false);
+  };
+
+  ApplicationController.prototype.play = function() {
+    this.frameCounter = 0;
+    this.cameraOperator.setManualMode(false);
+    this.track.setRecording(false);
   };
 
   /**

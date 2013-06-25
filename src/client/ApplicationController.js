@@ -5,15 +5,21 @@ The ApplicationController is the master controller for the app
 @module Client
 @class ApplicationController
 */
-define(["production/Resources", "controls/GamepadApi", "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype"],
+define(["production/Resources", "controls/GamepadApi", "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/Track"],
 
-function(Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
+function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
   "use strict";
 
   var initModelView = function(modelView, controller, config) {
     modelView.testName = config.test;
     modelView.record = function() {
-      console.log("inner record");
+      controller.record();
+    };
+    modelView.pause = function() {
+      controller.stop();
+    };
+    modelView.play = function() {
+      controller.play();
     };
 
   };
@@ -37,6 +43,9 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
       modelView.testName = err;
       modelView.$apply();
     });
+
+    this.frameIndex = 0;
+    this.track = new Track([]);
   };
 
   ApplicationController.prototype.testCreatePlanet = function() {
@@ -52,14 +61,15 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
 
   ApplicationController.prototype.testCreateShip = function() {
     var shipArch = new ShipArchetype();
+    var that = this;
 
     shipArch.setResourceUrl("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
 
     var shipPromise = this.set.getStage().enter(shipArch);
 
     shipPromise.then(function(ship) {
-      var animator = this.stageManager.getAnimator(ship);
-      var animCommands = this.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
+      var animator = that.stageManager.getAnimator(ship);
+      var animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
 
       animator.setCommandChannel(animCommands);
     });
@@ -166,7 +176,7 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
     var camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
 
     this.camera = new Resources.Camera(set.getSceneCamera());
-    this.cameraOperator = new Resources.CameraOperator(camCommands);
+    this.cameraOperator = new Resources.CameraOperator(camCommands, this.track);
     this.camera.setOperator(this.cameraOperator);
 
     this.stageManager = new Resources.StageManager(set.getStage());
@@ -180,12 +190,30 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
     set.getSyncSource().setCallback(function() {
       // TODO: move this to some general time keeper
 
+      that.track.setCurrentFrame(that.frameCounter++);
+
       that.stageManager.updateStage();
       that.camera.updateFrame();
-      // recordHead.saveStage() // could also be called continuity; done by camera?
-
     });
 
+  };
+
+  ApplicationController.prototype.record = function() {
+    this.frameCounter = 0;
+    this.cameraOperator.setManualMode(true);
+    this.track.setRecording(true);
+  };
+
+  ApplicationController.prototype.stop = function() {
+    this.frameCounter = 0;
+    this.cameraOperator.setManualMode(true);
+    this.track.setRecording(false);
+  };
+
+  ApplicationController.prototype.play = function() {
+    this.frameCounter = 0;
+    this.cameraOperator.setManualMode(false);
+    this.track.setRecording(false);
   };
 
   /**

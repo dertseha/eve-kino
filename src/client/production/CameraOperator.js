@@ -33,16 +33,35 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
     glMatrix.quat4.multiply(dest, tempQuat, dest);
   };
 
-  var CameraOperator = function(commandChannel) {
+  var CameraOperator = function(commandChannel, shotList) {
     this.commandChannel = commandChannel;
+    this.shotList = shotList;
+    this.manualMode = true;
   };
 
   CameraOperator.getActionNames = function() {
     return actionNames.slice(0);
   };
 
-  CameraOperator.prototype.getCameraStateData = function(lastState) {
-    var newState = lastState;
+  CameraOperator.prototype.setManualMode = function(on) {
+    this.manualMode = on;
+  };
+
+  CameraOperator.prototype.getCameraStateData = function(newState, lastState) {
+    var recordedState = this.shotList.getFrameData() || newState;
+
+    if (this.manualMode) {
+      newState = this.getNewStateData(newState, lastState, recordedState);
+    } else {
+      newState = recordedState;
+    }
+
+    this.shotList.setFrameData(newState);
+
+    return newState;
+  };
+
+  CameraOperator.prototype.getNewStateData = function(newState, lastState, recordedState) {
     var commands = this.commandChannel.getCommands();
     var roll = (commands.rollClockwise - commands.rollCounter) * 0.02;
     var pitch = (commands.pitchUp - commands.pitchDown) * 0.02;

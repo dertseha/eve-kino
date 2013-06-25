@@ -1,5 +1,5 @@
 /* global buster */
-define(["production/CameraOperator"], function(CameraOperator) {
+define(["production/CameraOperator", "production/Track"], function(CameraOperator, Track) {
   "use strict";
 
   var assert = buster.assert;
@@ -23,12 +23,14 @@ define(["production/CameraOperator"], function(CameraOperator) {
         commands[actionName] = 0.0;
       });
 
+      this.track = new Track([]);
+
       this.commandChannel = {
         getCommands: function() {
           return commands;
         }
       };
-      this.operator = new CameraOperator(this.commandChannel);
+      this.operator = new CameraOperator(this.commandChannel, this.track);
 
       this.cameraState = createEmptyCameraState();
     },
