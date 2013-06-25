@@ -22,18 +22,36 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
 
   var Animator = function(prop) {
     this.prop = prop;
+    this.commandChannel = null;
     this.lastState = null;
+    this.newState = null;
+  };
+
+  Animator.prototype.setCommandChannel = function(commandChannel) {
+    this.commandChannel = commandChannel;
   };
 
   Animator.prototype.update = function() {
     var lastState = this.prop.getStateData(this.lastState);
-    var newState = lastState;
-    var roll = 0.00;
-    var pitch = 0.00;
-    var yaw = 0.00;
-    var right = 0.0;
-    var up = 0.0;
-    var forward = 0.0;
+    var newState = this.prop.getStateData(this.newState);
+
+    if (this.commandChannel) {
+      newState = this.updateByCommands(newState, lastState);
+    }
+
+    this.prop.setStateData(newState);
+    this.lastState = lastState;
+    this.newState = newState;
+  };
+
+  Animator.prototype.updateByCommands = function(newState, lastState) {
+    var commands = this.commandChannel.getCommands();
+    var roll = (commands.rollClockwise - commands.rollCounter) * 0.02;
+    var pitch = (commands.pitchUp - commands.pitchDown) * 0.02;
+    var yaw = (commands.yawRight - commands.yawLeft) * 0.02;
+    var up = (commands.moveUp - commands.moveDown);
+    var right = (commands.moveRight - commands.moveLeft);
+    var forward = (commands.moveForward - commands.moveBackward);
 
     rotateModelOrientation(newState.rotation, roll, pitch, yaw);
 
@@ -45,8 +63,7 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
     newState.position[1] += tempVec3[1];
     newState.position[2] += tempVec3[2];
 
-    this.prop.setStateData(newState);
-    this.lastState = lastState;
+    return newState;
   };
 
   return Animator;

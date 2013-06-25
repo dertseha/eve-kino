@@ -47,6 +47,9 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
 
     shipPromise.then(function(ship) {
       var animator = stageManager.getAnimator(ship);
+      var animCommands = director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
+
+      animator.setCommandChannel(animCommands);
     });
     //ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
 
