@@ -1,123 +1,5 @@
 
 /**
-The TestController is the factory for the controller (why not naming it ...Factory?)
-
-@module Client
-@class TestController
-*/
-define('TestController',[], function() {
-  
-
-
-  /**
-    Creates a controller function
-
-    @method create
-    @param config {Object} the configuration to use
-    @return {Function} Controller function
-  */
-  var create = function(config) {
-    return function($scope) {
-      $scope.testName = config.test;
-    };
-  };
-
-  return {
-    create: create
-  };
-});
-/**
-The sync source provides a callback mechanism for black-burst synchronization.
-
-@module Client
-@class SyncSource
-*/
-define('production/ccp/SyncSource',[], function() {
-  
-
-  var clockRate = 60; // as per requestAnimFrame
-
-  var SyncSource = function(ccpwgl, scene) {
-    this.ccpwgl = ccpwgl;
-    this.scene = scene;
-  };
-
-  /**
-    This method registers a callback that is called for each picture.
-    @method setCallback
-    @param callback {function() void} the function to call for each new picture
-  */
-  SyncSource.prototype.setCallback = function(callback) {
-    // With current ccpwgl implementation, there is no callback happening
-    // before rendering AND retrieving the view matrix from the camera.
-    // Note: independent of the Update() calls.
-
-    this.ccpwgl.onPostRender = callback;
-  };
-
-  SyncSource.prototype.getRate = function() {
-    return clockRate;
-  };
-
-  return SyncSource;
-});
-/**
-The set provides access to all necessary set properties
-
-@module Client
-@class Set
-*/
-define('production/ccp/Set',[], function() {
-  
-
-  var Set = function(components) {
-    this.ccpwgl = components.ccpwgl;
-    this.scene = components.scene;
-    this.syncSource = components.syncSource;
-    this.stage = components.stage;
-    this.sceneCamera = components.sceneCamera;
-    this.lightBoard = components.lightBoard;
-  };
-
-  Set.prototype.getSyncSource = function() {
-    return this.syncSource;
-  };
-
-  Set.prototype.getStage = function() {
-    return this.stage;
-  };
-
-  Set.prototype.getSceneCamera = function() {
-    return this.sceneCamera;
-  };
-
-  return Set;
-});
-/**
-The Stage holds all the set pieces and actors
-
-@module Client
-@class Stage
-*/
-define('production/ccp/Stage',["lib/q"], function(q) {
-  
-
-  var Stage = function(ccpwgl, scene) {
-    this.ccpwgl = ccpwgl;
-    this.scene = scene;
-  };
-
-  Stage.prototype.enter = function(archetype) {
-    var deferred = q.defer();
-
-    archetype.request(this.ccpwgl, this.scene, deferred);
-
-    return deferred.promise;
-  };
-
-  return Stage;
-});
-/**
 The helper is a static object providing some helper constants and functions.
 
 @module Client
@@ -187,215 +69,6 @@ define('util/GlHelper',["lib/gl-matrix"], function(glMatrix) {
   };
 
   return helper;
-});
-/**
-The SceneCamera is a very basic camera for the scene. It has the minimal
-implementation to provide the projection and view matrices.
-
-@module Client
-@class SceneCamera
-*/
-define('production/ccp/SceneCamera',["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
-  
-
-  var SceneCamera = function() {
-    this.fov = 60;
-    this.nearPlane = 1;
-    this.farPlane = 100000;
-
-    this.rotation = glMatrix.quat4.identity();
-    this.modelRotation = glMatrix.quat4.identity();
-    this.position = glMatrix.vec3.create();
-    this.viewOffset = glMatrix.vec3.create();
-
-    this.projection = glMatrix.mat4.create();
-    this.view = glMatrix.mat4.create();
-
-    this.updateView = this.calculateView;
-  };
-
-  SceneCamera.prototype.nullFunction = function() {
-
-  };
-
-  SceneCamera.prototype.calculateView = function() {
-    glMatrix.mat4.fromRotationTranslation(this.rotation, this.viewOffset, this.view);
-    glMatrix.mat4.translate(this.view, this.position);
-
-    this.updateView = this.nullFunction;
-  };
-
-  SceneCamera.prototype.onViewChanged = function() {
-    this.updateView = this.calculateView;
-  };
-
-  SceneCamera.prototype.getProjection = function(aspect) {
-    glMatrix.mat4.perspective(this.fov, aspect, this.nearPlane, this.farPlane, this.projection);
-
-    return this.projection;
-  };
-
-  SceneCamera.prototype.getView = function() {
-    this.updateView();
-
-    return this.view;
-  };
-
-  SceneCamera.prototype.update = function(dt) {
-
-  };
-
-  SceneCamera.prototype.getStateData = function(dest) {
-    var result = dest || {};
-
-    result.position = this.getPosition(result.position);
-    result.rotation = this.getRotation(result.rotation);
-    result.modelRotation = this.getModelRotation(result.modelRotation);
-
-    return result;
-  };
-
-  SceneCamera.prototype.setStateData = function(data) {
-    glMatrix.vec3.set(data.position, this.position);
-    glMatrix.quat4.set(data.rotation, this.rotation);
-    glMatrix.quat4.set(data.modelRotation, this.modelRotation);
-    this.onViewChanged();
-  };
-
-  SceneCamera.prototype.getPosition = function(dest) {
-    return glMatrix.vec3.set(this.position, dest || [0, 0, 0]);
-  };
-
-  SceneCamera.prototype.setPosition = function(position) {
-    glMatrix.vec3.set(position, this.position);
-    this.onViewChanged();
-  };
-
-  SceneCamera.prototype.getRotation = function(dest) {
-    return glMatrix.quat4.set(this.rotation, dest || [0, 0, 0, 0]);
-  };
-
-  SceneCamera.prototype.setRotation = function(rotation) {
-    glMatrix.quat4.set(rotation, this.rotation);
-    this.onViewChanged();
-  };
-
-  SceneCamera.prototype.getModelRotation = function(dest) {
-    return glMatrix.quat4.set(this.modelRotation, dest || [0, 0, 0, 0]);
-  };
-
-  SceneCamera.prototype.setModelRotation = function(rotation) {
-    glMatrix.quat4.set(rotation, this.modelRotation);
-  };
-
-  return SceneCamera;
-});
-/**
-The light board provides access to lighting controls
-
-@module Client
-@class LightBoard
-*/
-define('production/ccp/LightBoard',[], function() {
-  
-
-  var LightBoard = function(ccpwgl, scene) {
-    this.ccpwgl = ccpwgl;
-    this.scene = scene;
-  };
-
-  return LightBoard;
-});
-/*jshint maxparams:100 */
-
-/**
-The production manager is responsible for creating a set with all necessary
-deparments. 
-
-@module Client
-@class ProductionManager
-*/
-define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"],
-
-function(q, SyncSource, Set, Stage, SceneCamera, LightBoard) {
-  
-
-  var sceneOptions = {
-
-  };
-
-  var onSceneCreated = function(ccpwgl, scene) {
-    var components = {
-      ccpwgl: ccpwgl,
-      scene: scene,
-      syncSource: new SyncSource(ccpwgl, scene),
-      stage: new Stage(ccpwgl, scene),
-      sceneCamera: new SceneCamera(),
-      lightBoard: new LightBoard(ccpwgl, scene)
-    };
-
-    ccpwgl.setCamera(components.sceneCamera);
-
-    return new Set(components);
-  };
-
-  var createSceneDeferred = function(ccpwgl, canvas, strategy) {
-    var deferred = q.defer();
-    var resolveCallback = function(scene) {
-      var set = onSceneCreated(ccpwgl, scene);
-
-      deferred.resolve(set);
-    };
-
-    try {
-      ccpwgl.initialize(canvas, sceneOptions);
-
-      strategy(resolveCallback);
-    } catch (ex) {
-      deferred.reject(ex);
-    }
-
-    return deferred.promise;
-  };
-
-  var ProductionManager = function(ccpwgl) {
-    this.ccpwgl = ccpwgl;
-  };
-
-  /**
-    See ccpwgl.setResourcePath()
-
-    @method setResourcePath
-    @param {string} namespace Resource namespace.
-    @param {string} url URL to resource root. Needs to have a trailing slash.
-  */
-  ProductionManager.prototype.setResourcePath = function(namespace, url) {
-    this.ccpwgl.setResourcePath(namespace, url);
-  };
-
-  ProductionManager.prototype.createSet = function(canvas, backgroundUrl) {
-    var ccpwgl = this.ccpwgl;
-
-    return createSceneDeferred(ccpwgl, canvas, function(callback) {
-      var onLoad = function() {
-        callback(this);
-      };
-
-      ccpwgl.loadScene(backgroundUrl, onLoad);
-    });
-  };
-
-  ProductionManager.prototype.createChromaKeyedSet = function(canvas, backgroundColor) {
-    var ccpwgl = this.ccpwgl;
-
-    return createSceneDeferred(ccpwgl, canvas, function(callback) {
-      var scene = ccpwgl.createScene(backgroundColor);
-
-      callback(scene);
-    });
-  };
-
-  return ProductionManager;
 });
 /* global console */
 /**
@@ -1069,29 +742,48 @@ define('production/ccp/res/PlanetArchetype',["production/ccp/res/Planet"], funct
 
   return PlanetArchetype;
 });
-/*jshint maxparams:100 */
 /* global console */
-
 /**
-ClientApp is the primary entry point for the main client side application
+The ApplicationController is the master controller for the app
 
 @module Client
-@class ClientApp
+@class ApplicationController
 */
-define('ClientApp',["module", "angular", "lib/ccpwgl", "TestController", "production/ccp/ProductionManager", "production/Resources", "controls/GamepadApi",
-    "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype"
-],
+define('ApplicationController',["production/Resources", "controls/GamepadApi", "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype"],
 
-function(module, angular, ccpwgl, testController, ProductionManager, Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
+function(Resources, GamepadApi, ShipArchetype, PlanetArchetype) {
   
 
-  var config = module.config();
+  var initModelView = function(modelView, controller, config) {
+    modelView.testName = config.test;
+    modelView.record = function() {
+      console.log("inner record");
+    };
 
-  var onSetCreated = function(set) {
-    //var sun = scene.scene.loadSun("res:/dx9/model/lensflare/blue.red");
-    //scene.scene.setSunLightColor([0.0, 0.0, 0.0]);
-    //scene.scene.setFog(10, 1000, 0.8, [0.0, 0.3, 0.0]);
+  };
 
+  var ApplicationController = function(modelView, config, productionManager, mainScreen) {
+    var that = this;
+
+    this.productionManager = productionManager;
+
+    initModelView(modelView, this, config);
+
+    productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
+
+    var promisedSet = productionManager.createSet(mainScreen, "res:/dx9/scene/universe/a01_cube.red");
+    //var promisedSet = productionManager.createChromaKeyedSet(mainScreen, [0.0, 1.0, 0.0, 1.0]);
+
+    promisedSet.then(function(set) {
+      that.onSetCreated(set);
+    }, function(err) {
+      console.log("Init error: " + err);
+      modelView.testName = err;
+      modelView.$apply();
+    });
+  };
+
+  ApplicationController.prototype.testCreatePlanet = function() {
     var planetArch = new PlanetArchetype();
 
     planetArch.setItemId(40000100);
@@ -1099,97 +791,96 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
     planetArch.setHeightMap1Url("res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png");
     planetArch.setHeightMap2Url("res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
 
-    set.getStage().enter(planetArch);
+    this.set.getStage().enter(planetArch);
+  };
 
-    var camera = new Resources.Camera(set.getSceneCamera());
-    var director = new Resources.Director();
-    var camCommands = director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
-    var cameraOperator = new Resources.CameraOperator(camCommands);
-    var gamepadInput = director.getInputChannel("gamepad");
-
-    camera.setOperator(cameraOperator);
-
-    var stageManager = new Resources.StageManager(set.getStage());
+  ApplicationController.prototype.testCreateShip = function() {
     var shipArch = new ShipArchetype();
 
     shipArch.setResourceUrl("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
 
-    var shipPromise = set.getStage().enter(shipArch);
+    var shipPromise = this.set.getStage().enter(shipArch);
 
     shipPromise.then(function(ship) {
-      var animator = stageManager.getAnimator(ship);
-      var animCommands = director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
+      var animator = this.stageManager.getAnimator(ship);
+      var animCommands = this.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
 
       animator.setCommandChannel(animCommands);
     });
     //ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
+  };
 
-
-    director.addBinding({
+  ApplicationController.prototype.createDefaultBindings = function() {
+    this.director.addBinding({
       actionName: "yawLeft"
     }, {
       inputName: "RIGHT_STICK_X_NEG"
     });
-    director.addBinding({
+    this.director.addBinding({
       actionName: "yawRight"
     }, {
       inputName: "RIGHT_STICK_X_POS"
     });
 
-    director.addBinding({
+    this.director.addBinding({
       actionName: "pitchUp"
     }, {
       inputName: "RIGHT_STICK_Y_POS"
     });
-    director.addBinding({
+    this.director.addBinding({
       actionName: "pitchDown"
     }, {
       inputName: "RIGHT_STICK_Y_NEG"
     });
 
-    director.addBinding({
+    this.director.addBinding({
       actionName: "rollClockwise"
     }, {
       inputName: "LEFT_STICK_X_POS"
     });
-    director.addBinding({
+    this.director.addBinding({
       actionName: "rollCounter"
     }, {
       inputName: "LEFT_STICK_X_NEG"
     });
 
-    director.addBinding({
+    this.director.addBinding({
       actionName: "moveForward"
     }, {
       inputName: "RB"
     });
-    director.addBinding({
+    this.director.addBinding({
       actionName: "moveBackward"
     }, {
       inputName: "LB"
     });
 
-    director.addBinding({
+    this.director.addBinding({
       actionName: "moveLeft"
     }, {
       inputName: "X"
     });
-    director.addBinding({
+    this.director.addBinding({
       actionName: "moveRight"
     }, {
       inputName: "B"
     });
 
-    director.addBinding({
+    this.director.addBinding({
       actionName: "moveUp"
     }, {
       inputName: "Y"
     });
-    director.addBinding({
+    this.director.addBinding({
       actionName: "moveDown"
     }, {
       inputName: "A"
     });
+
+  };
+
+  ApplicationController.prototype.setupGamepadInput = function() {
+    var gamepadInput = this.director.getInputChannel("gamepad");
 
     var gamepadListener = {
       onGamepadDisconnected: function() {},
@@ -1197,6 +888,7 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
         gamepadInput.setIntensity(controlName, value);
       }
     };
+
     var gamepadApi = new GamepadApi();
     gamepadApi.addGamepadListener({
       onGamepadConnected: function(gamepad) {
@@ -1204,33 +896,378 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
       },
       onGamepadDisconnected: function() {}
     });
-    var gotGamepads = gamepadApi.init();
+
+    gamepadApi.init();
+  };
+
+  ApplicationController.prototype.onSetCreated = function(set) {
+    var that = this;
+
+    this.set = set;
+
+    this.director = new Resources.Director();
+
+    var camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
+
+    this.camera = new Resources.Camera(set.getSceneCamera());
+    this.cameraOperator = new Resources.CameraOperator(camCommands);
+    this.camera.setOperator(this.cameraOperator);
+
+    this.stageManager = new Resources.StageManager(set.getStage());
+
+    this.testCreateShip();
+
+    this.createDefaultBindings();
+
+    this.setupGamepadInput();
 
     set.getSyncSource().setCallback(function() {
       // TODO: move this to some general time keeper
 
-      stageManager.updateStage();
-      camera.updateFrame();
+      that.stageManager.updateStage();
+      that.camera.updateFrame();
       // recordHead.saveStage() // could also be called continuity; done by camera?
 
     });
+
   };
+
+  /**
+    Creates a controller function
+
+    @method create
+    @param config {Object} the configuration to use
+    @return {Function} Controller function
+  */
+  var create = function(config, productionManager, mainScreen) {
+    return function($scope) {
+      return new ApplicationController($scope, config, productionManager, mainScreen);
+    };
+  };
+
+  return {
+    ApplicationController: ApplicationController,
+    create: create
+  };
+});
+/**
+The sync source provides a callback mechanism for black-burst synchronization.
+
+@module Client
+@class SyncSource
+*/
+define('production/ccp/SyncSource',[], function() {
+  
+
+  var clockRate = 60; // as per requestAnimFrame
+
+  var SyncSource = function(ccpwgl, scene) {
+    this.ccpwgl = ccpwgl;
+    this.scene = scene;
+  };
+
+  /**
+    This method registers a callback that is called for each picture.
+    @method setCallback
+    @param callback {function() void} the function to call for each new picture
+  */
+  SyncSource.prototype.setCallback = function(callback) {
+    // With current ccpwgl implementation, there is no callback happening
+    // before rendering AND retrieving the view matrix from the camera.
+    // Note: independent of the Update() calls.
+
+    this.ccpwgl.onPostRender = callback;
+  };
+
+  SyncSource.prototype.getRate = function() {
+    return clockRate;
+  };
+
+  return SyncSource;
+});
+/**
+The set provides access to all necessary set properties
+
+@module Client
+@class Set
+*/
+define('production/ccp/Set',[], function() {
+  
+
+  var Set = function(components) {
+    this.ccpwgl = components.ccpwgl;
+    this.scene = components.scene;
+    this.syncSource = components.syncSource;
+    this.stage = components.stage;
+    this.sceneCamera = components.sceneCamera;
+    this.lightBoard = components.lightBoard;
+  };
+
+  Set.prototype.getSyncSource = function() {
+    return this.syncSource;
+  };
+
+  Set.prototype.getStage = function() {
+    return this.stage;
+  };
+
+  Set.prototype.getSceneCamera = function() {
+    return this.sceneCamera;
+  };
+
+  return Set;
+});
+/**
+The Stage holds all the set pieces and actors
+
+@module Client
+@class Stage
+*/
+define('production/ccp/Stage',["lib/q"], function(q) {
+  
+
+  var Stage = function(ccpwgl, scene) {
+    this.ccpwgl = ccpwgl;
+    this.scene = scene;
+  };
+
+  Stage.prototype.enter = function(archetype) {
+    var deferred = q.defer();
+
+    archetype.request(this.ccpwgl, this.scene, deferred);
+
+    return deferred.promise;
+  };
+
+  return Stage;
+});
+/**
+The SceneCamera is a very basic camera for the scene. It has the minimal
+implementation to provide the projection and view matrices.
+
+@module Client
+@class SceneCamera
+*/
+define('production/ccp/SceneCamera',["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
+  
+
+  var SceneCamera = function() {
+    this.fov = 60;
+    this.nearPlane = 1;
+    this.farPlane = 100000;
+
+    this.rotation = glMatrix.quat4.identity();
+    this.modelRotation = glMatrix.quat4.identity();
+    this.position = glMatrix.vec3.create();
+    this.viewOffset = glMatrix.vec3.create();
+
+    this.projection = glMatrix.mat4.create();
+    this.view = glMatrix.mat4.create();
+
+    this.updateView = this.calculateView;
+  };
+
+  SceneCamera.prototype.nullFunction = function() {
+
+  };
+
+  SceneCamera.prototype.calculateView = function() {
+    glMatrix.mat4.fromRotationTranslation(this.rotation, this.viewOffset, this.view);
+    glMatrix.mat4.translate(this.view, this.position);
+
+    this.updateView = this.nullFunction;
+  };
+
+  SceneCamera.prototype.onViewChanged = function() {
+    this.updateView = this.calculateView;
+  };
+
+  SceneCamera.prototype.getProjection = function(aspect) {
+    glMatrix.mat4.perspective(this.fov, aspect, this.nearPlane, this.farPlane, this.projection);
+
+    return this.projection;
+  };
+
+  SceneCamera.prototype.getView = function() {
+    this.updateView();
+
+    return this.view;
+  };
+
+  SceneCamera.prototype.update = function(dt) {
+
+  };
+
+  SceneCamera.prototype.getStateData = function(dest) {
+    var result = dest || {};
+
+    result.position = this.getPosition(result.position);
+    result.rotation = this.getRotation(result.rotation);
+    result.modelRotation = this.getModelRotation(result.modelRotation);
+
+    return result;
+  };
+
+  SceneCamera.prototype.setStateData = function(data) {
+    glMatrix.vec3.set(data.position, this.position);
+    glMatrix.quat4.set(data.rotation, this.rotation);
+    glMatrix.quat4.set(data.modelRotation, this.modelRotation);
+    this.onViewChanged();
+  };
+
+  SceneCamera.prototype.getPosition = function(dest) {
+    return glMatrix.vec3.set(this.position, dest || [0, 0, 0]);
+  };
+
+  SceneCamera.prototype.setPosition = function(position) {
+    glMatrix.vec3.set(position, this.position);
+    this.onViewChanged();
+  };
+
+  SceneCamera.prototype.getRotation = function(dest) {
+    return glMatrix.quat4.set(this.rotation, dest || [0, 0, 0, 0]);
+  };
+
+  SceneCamera.prototype.setRotation = function(rotation) {
+    glMatrix.quat4.set(rotation, this.rotation);
+    this.onViewChanged();
+  };
+
+  SceneCamera.prototype.getModelRotation = function(dest) {
+    return glMatrix.quat4.set(this.modelRotation, dest || [0, 0, 0, 0]);
+  };
+
+  SceneCamera.prototype.setModelRotation = function(rotation) {
+    glMatrix.quat4.set(rotation, this.modelRotation);
+  };
+
+  return SceneCamera;
+});
+/**
+The light board provides access to lighting controls
+
+@module Client
+@class LightBoard
+*/
+define('production/ccp/LightBoard',[], function() {
+  
+
+  var LightBoard = function(ccpwgl, scene) {
+    this.ccpwgl = ccpwgl;
+    this.scene = scene;
+  };
+
+  return LightBoard;
+});
+/*jshint maxparams:100 */
+
+/**
+The production manager is responsible for creating a set with all necessary
+deparments. 
+
+@module Client
+@class ProductionManager
+*/
+define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"],
+
+function(q, SyncSource, Set, Stage, SceneCamera, LightBoard) {
+  
+
+  var sceneOptions = {
+
+  };
+
+  var onSceneCreated = function(ccpwgl, scene) {
+    var components = {
+      ccpwgl: ccpwgl,
+      scene: scene,
+      syncSource: new SyncSource(ccpwgl, scene),
+      stage: new Stage(ccpwgl, scene),
+      sceneCamera: new SceneCamera(),
+      lightBoard: new LightBoard(ccpwgl, scene)
+    };
+
+    ccpwgl.setCamera(components.sceneCamera);
+
+    return new Set(components);
+  };
+
+  var createSceneDeferred = function(ccpwgl, canvas, strategy) {
+    var deferred = q.defer();
+    var resolveCallback = function(scene) {
+      var set = onSceneCreated(ccpwgl, scene);
+
+      deferred.resolve(set);
+    };
+
+    try {
+      ccpwgl.initialize(canvas, sceneOptions);
+
+      strategy(resolveCallback);
+    } catch (ex) {
+      deferred.reject(ex);
+    }
+
+    return deferred.promise;
+  };
+
+  var ProductionManager = function(ccpwgl) {
+    this.ccpwgl = ccpwgl;
+  };
+
+  /**
+    See ccpwgl.setResourcePath()
+
+    @method setResourcePath
+    @param {string} namespace Resource namespace.
+    @param {string} url URL to resource root. Needs to have a trailing slash.
+  */
+  ProductionManager.prototype.setResourcePath = function(namespace, url) {
+    this.ccpwgl.setResourcePath(namespace, url);
+  };
+
+  ProductionManager.prototype.createSet = function(canvas, backgroundUrl) {
+    var ccpwgl = this.ccpwgl;
+
+    return createSceneDeferred(ccpwgl, canvas, function(callback) {
+      var onLoad = function() {
+        callback(this);
+      };
+
+      ccpwgl.loadScene(backgroundUrl, onLoad);
+    });
+  };
+
+  ProductionManager.prototype.createChromaKeyedSet = function(canvas, backgroundColor) {
+    var ccpwgl = this.ccpwgl;
+
+    return createSceneDeferred(ccpwgl, canvas, function(callback) {
+      var scene = ccpwgl.createScene(backgroundColor);
+
+      callback(scene);
+    });
+  };
+
+  return ProductionManager;
+});
+/**
+ClientApp is the primary entry point for the main client side application
+
+@module Client
+@class ClientApp
+*/
+define('ClientApp',["module", "angular", "lib/ccpwgl", "ApplicationController", "production/ccp/ProductionManager"],
+
+function(module, angular, ccpwgl, appController, ProductionManager) {
+  
+
+  var config = module.config();
 
   var main = function(mainScreen) {
     var appModule = angular.module("ClientApp", []);
-
-    appModule.controller("TestController", ["$scope", testController.create(config)]);
-
     var productionManager = new ProductionManager(ccpwgl);
-    productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
 
-    var promise = productionManager.createSet(mainScreen, "res:/dx9/scene/universe/a01_cube.red");
-    //var promise = productionManager.createChromaKeyedSet(mainScreen, [0.0, 1.0, 0.0, 1.0]);
-
-    promise.then(onSetCreated, function(err) {
-      console.log("Init error: " + err);
-    });
-
+    appModule.controller("ApplicationController", ["$scope", appController.create(config, productionManager, mainScreen)]);
 
     return [appModule.name];
   };
