@@ -135,7 +135,7 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
     });
     var gotGamepads = gamepadApi.init();
 
-    set.setPreRenderCallback(function() {
+    set.getSyncSource().setCallback(function() {
       // TODO: move this to some general time keeper
 
       stageManager.updateStage();

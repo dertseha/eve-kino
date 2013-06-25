@@ -7,22 +7,17 @@ The set provides access to all necessary set properties
 define([], function() {
   "use strict";
 
-  var Set = function(ccpwgl, scene, stage, sceneCamera, lightBoard) {
-    this.ccpwgl = ccpwgl;
-    this.scene = scene;
-    this.stage = stage;
-    this.sceneCamera = sceneCamera;
-    this.lightBoard = lightBoard;
+  var Set = function(components) {
+    this.ccpwgl = components.ccpwgl;
+    this.scene = components.scene;
+    this.syncSource = components.syncSource;
+    this.stage = components.stage;
+    this.sceneCamera = components.sceneCamera;
+    this.lightBoard = components.lightBoard;
   };
 
-  /**
-    This method registers a callback that is called before a new picture is
-    rendered.
-    @method setPreRenderCallback
-    @param callback {function() void} the function to call for each new picture
-  */
-  Set.prototype.setPreRenderCallback = function(callback) {
-    this.ccpwgl.onPreRender = callback;
+  Set.prototype.getSyncSource = function() {
+    return this.syncSource;
   };
 
   Set.prototype.getStage = function() {

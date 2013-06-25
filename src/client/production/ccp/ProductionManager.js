@@ -7,7 +7,9 @@ deparments.
 @module Client
 @class ProductionManager
 */
-define(["lib/q", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"], function(q, Set, Stage, SceneCamera, LightBoard) {
+define(["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"],
+
+function(q, SyncSource, Set, Stage, SceneCamera, LightBoard) {
   "use strict";
 
   var sceneOptions = {
@@ -15,13 +17,18 @@ define(["lib/q", "production/ccp/Set", "production/ccp/Stage", "production/ccp/S
   };
 
   var onSceneCreated = function(ccpwgl, scene) {
-    var stage = new Stage(ccpwgl, scene);
-    var sceneCamera = new SceneCamera();
-    var lightBoard = new LightBoard(ccpwgl, scene);
+    var components = {
+      ccpwgl: ccpwgl,
+      scene: scene,
+      syncSource: new SyncSource(ccpwgl, scene),
+      stage: new Stage(ccpwgl, scene),
+      sceneCamera: new SceneCamera(),
+      lightBoard: new LightBoard(ccpwgl, scene)
+    };
 
-    ccpwgl.setCamera(sceneCamera);
+    ccpwgl.setCamera(components.sceneCamera);
 
-    return new Set(ccpwgl, scene, stage, sceneCamera, lightBoard);
+    return new Set(components);
   };
 
   var createSceneDeferred = function(ccpwgl, canvas, strategy) {

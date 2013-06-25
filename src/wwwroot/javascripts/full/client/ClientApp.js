@@ -27,6 +27,41 @@ define('TestController',[], function() {
   };
 });
 /**
+The sync source provides a callback mechanism for black-burst synchronization.
+
+@module Client
+@class SyncSource
+*/
+define('production/ccp/SyncSource',[], function() {
+  
+
+  var clockRate = 60; // as per requestAnimFrame
+
+  var SyncSource = function(ccpwgl, scene) {
+    this.ccpwgl = ccpwgl;
+    this.scene = scene;
+  };
+
+  /**
+    This method registers a callback that is called for each picture.
+    @method setCallback
+    @param callback {function() void} the function to call for each new picture
+  */
+  SyncSource.prototype.setCallback = function(callback) {
+    // With current ccpwgl implementation, there is no callback happening
+    // before rendering AND retrieving the view matrix from the camera.
+    // Note: independent of the Update() calls.
+
+    this.ccpwgl.onPostRender = callback;
+  };
+
+  SyncSource.prototype.getRate = function() {
+    return clockRate;
+  };
+
+  return SyncSource;
+});
+/**
 The set provides access to all necessary set properties
 
 @module Client
@@ -35,22 +70,17 @@ The set provides access to all necessary set properties
 define('production/ccp/Set',[], function() {
   
 
-  var Set = function(ccpwgl, scene, stage, sceneCamera, lightBoard) {
-    this.ccpwgl = ccpwgl;
-    this.scene = scene;
-    this.stage = stage;
-    this.sceneCamera = sceneCamera;
-    this.lightBoard = lightBoard;
+  var Set = function(components) {
+    this.ccpwgl = components.ccpwgl;
+    this.scene = components.scene;
+    this.syncSource = components.syncSource;
+    this.stage = components.stage;
+    this.sceneCamera = components.sceneCamera;
+    this.lightBoard = components.lightBoard;
   };
 
-  /**
-    This method registers a callback that is called before a new picture is
-    rendered.
-    @method setPreRenderCallback
-    @param callback {function() void} the function to call for each new picture
-  */
-  Set.prototype.setPreRenderCallback = function(callback) {
-    this.ccpwgl.onPreRender = callback;
+  Set.prototype.getSyncSource = function() {
+    return this.syncSource;
   };
 
   Set.prototype.getStage = function() {
@@ -285,7 +315,9 @@ deparments.
 @module Client
 @class ProductionManager
 */
-define('production/ccp/ProductionManager',["lib/q", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"], function(q, Set, Stage, SceneCamera, LightBoard) {
+define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"],
+
+function(q, SyncSource, Set, Stage, SceneCamera, LightBoard) {
   
 
   var sceneOptions = {
@@ -293,13 +325,18 @@ define('production/ccp/ProductionManager',["lib/q", "production/ccp/Set", "produ
   };
 
   var onSceneCreated = function(ccpwgl, scene) {
-    var stage = new Stage(ccpwgl, scene);
-    var sceneCamera = new SceneCamera();
-    var lightBoard = new LightBoard(ccpwgl, scene);
+    var components = {
+      ccpwgl: ccpwgl,
+      scene: scene,
+      syncSource: new SyncSource(ccpwgl, scene),
+      stage: new Stage(ccpwgl, scene),
+      sceneCamera: new SceneCamera(),
+      lightBoard: new LightBoard(ccpwgl, scene)
+    };
 
-    ccpwgl.setCamera(sceneCamera);
+    ccpwgl.setCamera(components.sceneCamera);
 
-    return new Set(ccpwgl, scene, stage, sceneCamera, lightBoard);
+    return new Set(components);
   };
 
   var createSceneDeferred = function(ccpwgl, canvas, strategy) {
@@ -1169,7 +1206,7 @@ function(module, angular, ccpwgl, testController, ProductionManager, Resources, 
     });
     var gotGamepads = gamepadApi.init();
 
-    set.setPreRenderCallback(function() {
+    set.getSyncSource().setCallback(function() {
       // TODO: move this to some general time keeper
 
       stageManager.updateStage();
