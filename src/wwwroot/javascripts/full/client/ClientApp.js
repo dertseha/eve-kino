@@ -818,6 +818,14 @@ define('ApplicationController',["production/Resources", "controls/GamepadApi", "
 function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
   
 
+  var addShip = function(modelView, url) {
+    var ship = {
+      url: url
+    };
+
+    modelView.ships.push(ship);
+  };
+
   var initModelView = function(modelView, controller, config) {
     modelView.testName = config.test;
     modelView.record = function() {
@@ -830,6 +838,15 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
       controller.play();
     };
 
+    modelView.loadShip = function(ship) {
+      controller.testCreateShip(ship.url);
+    };
+
+    modelView.ships = [];
+    addShip(modelView, "res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
+    addShip(modelView, "res:/dx9/model/ship/gallente/Cruiser/GC3/CreoDron/GC3_T2_CreoDron.red");
+    addShip(modelView, "res:/dx9/model/ship/amarr/at1/at1.red");
+    addShip(modelView, "res:/dx9/model/ship/jove/capsule/capsule.red");
   };
 
   var ApplicationController = function(modelView, config, productionManager, mainScreen) {
@@ -867,19 +884,19 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
     this.set.getStage().enter(planetArch);
   };
 
-  ApplicationController.prototype.testCreateShip = function() {
+  ApplicationController.prototype.testCreateShip = function(resourceUrl) {
     var shipArch = new ShipArchetype();
     var that = this;
 
-    shipArch.setResourceUrl("res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
+    shipArch.setResourceUrl(resourceUrl);
 
     var shipPromise = this.set.getStage().enter(shipArch);
 
     shipPromise.then(function(ship) {
-      var animator = that.stageManager.getAnimator(ship);
-      var animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
+      //var animator = that.stageManager.getAnimator(ship);
+      //var animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
 
-      animator.setCommandChannel(animCommands);
+      //animator.setCommandChannel(animCommands);
     });
     //ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
   };
@@ -989,7 +1006,7 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
 
     this.stageManager = new Resources.StageManager(set.getStage());
 
-    this.testCreateShip();
+    //this.testCreateShip();
 
     this.createDefaultBindings();
 
