@@ -19,8 +19,8 @@ define(["production/Animator"], function(Animator) {
     });
   };
 
-  StageManager.prototype.getAnimator = function(prop) {
-    var animator = new Animator(prop);
+  StageManager.prototype.getAnimator = function(prop, script) {
+    var animator = new Animator(prop, script);
 
     this.animators.push(animator);
 

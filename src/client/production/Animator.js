@@ -20,11 +20,16 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
     glMatrix.quat4.multiply(dest, tempQuat, dest);
   };
 
-  var Animator = function(prop) {
+  var Animator = function(prop, script) {
     this.prop = prop;
+    this.script = script;
+
     this.commandChannel = null;
     this.lastState = null;
-    this.newState = null;
+  };
+
+  Animator.prototype.getScript = function() {
+    return this.script;
   };
 
   Animator.prototype.setCommandChannel = function(commandChannel) {
@@ -33,18 +38,21 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
 
   Animator.prototype.update = function() {
     var lastState = this.prop.getStateData(this.lastState);
-    var newState = this.prop.getStateData(this.newState);
+    var newState = this.prop.getStateData();
+    var recordedState = this.script.getFrameData() || newState;
 
     if (this.commandChannel) {
-      newState = this.updateByCommands(newState, lastState);
+      newState = this.updateByCommands(newState, lastState, recordedState);
+    } else {
+      newState = recordedState;
     }
 
     this.prop.setStateData(newState);
+    this.script.setFrameData(newState);
     this.lastState = lastState;
-    this.newState = newState;
   };
 
-  Animator.prototype.updateByCommands = function(newState, lastState) {
+  Animator.prototype.updateByCommands = function(newState, lastState, recordedState) {
     var commands = this.commandChannel.getCommands();
     var roll = (commands.rollClockwise - commands.rollCounter) * 0.02;
     var pitch = (commands.pitchUp - commands.pitchDown) * 0.02;

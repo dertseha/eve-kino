@@ -12,6 +12,10 @@ define([], function() {
     this.currentFrame = 0;
   };
 
+  Track.prototype.getLength = function() {
+    return this.data.length;
+  };
+
   Track.prototype.setCurrentFrame = function(index) {
     this.currentFrame = index;
   };

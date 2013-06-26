@@ -18,7 +18,7 @@ define(["production/ccp/res/Planet"], function(Planet) {
   PlanetArchetype.prototype.request = function(ccpwgl, scene, deferred) {
     var obj = scene.loadPlanet(this.itemId, this.resourceUrl, this.atmosphereUrl, this.heightMap1Url, this.heightMap2Url);
 
-    deferred.resolve(new Planet(ccpwgl, scene, obj));
+    deferred.resolve(new Planet(obj));
   };
 
   PlanetArchetype.prototype.setItemId = function(value) {
@@ -33,7 +33,7 @@ define(["production/ccp/res/Planet"], function(Planet) {
     return this;
   };
 
-  PlanetArchetype.prototype.setAtomsphereUrl = function(value) {
+  PlanetArchetype.prototype.setAtmosphereUrl = function(value) {
     this.atmosphereUrl = value;
 
     return this;

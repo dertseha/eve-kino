@@ -65,6 +65,14 @@ define('util/GlHelper',["lib/gl-matrix"], function(glMatrix) {
     */
     degreeToRad: function(degrees) {
       return degrees * oneDegreeInRad;
+    },
+
+    rotateVectorByView: function(dest, rotation, right, up, forward) {
+      dest[0] = right * viewDirections.rightward;
+      dest[1] = up * viewDirections.upward;
+      dest[2] = forward * viewDirections.forward;
+
+      return glMatrix.quat4.multiplyVec3(rotation, dest);
     }
   };
 
@@ -92,11 +100,16 @@ define('production/Animator',["lib/gl-matrix", "util/GlHelper"], function(glMatr
     glMatrix.quat4.multiply(dest, tempQuat, dest);
   };
 
-  var Animator = function(prop) {
+  var Animator = function(prop, script) {
     this.prop = prop;
+    this.script = script;
+
     this.commandChannel = null;
     this.lastState = null;
-    this.newState = null;
+  };
+
+  Animator.prototype.getScript = function() {
+    return this.script;
   };
 
   Animator.prototype.setCommandChannel = function(commandChannel) {
@@ -105,18 +118,21 @@ define('production/Animator',["lib/gl-matrix", "util/GlHelper"], function(glMatr
 
   Animator.prototype.update = function() {
     var lastState = this.prop.getStateData(this.lastState);
-    var newState = this.prop.getStateData(this.newState);
+    var newState = this.prop.getStateData();
+    var recordedState = this.script.getFrameData() || newState;
 
     if (this.commandChannel) {
-      newState = this.updateByCommands(newState, lastState);
+      newState = this.updateByCommands(newState, lastState, recordedState);
+    } else {
+      newState = recordedState;
     }
 
     this.prop.setStateData(newState);
+    this.script.setFrameData(newState);
     this.lastState = lastState;
-    this.newState = newState;
   };
 
-  Animator.prototype.updateByCommands = function(newState, lastState) {
+  Animator.prototype.updateByCommands = function(newState, lastState, recordedState) {
     var commands = this.commandChannel.getCommands();
     var roll = (commands.rollClockwise - commands.rollCounter) * 0.02;
     var pitch = (commands.pitchUp - commands.pitchDown) * 0.02;
@@ -161,8 +177,8 @@ define('production/StageManager',["production/Animator"], function(Animator) {
     });
   };
 
-  StageManager.prototype.getAnimator = function(prop) {
-    var animator = new Animator(prop);
+  StageManager.prototype.getAnimator = function(prop, script) {
+    var animator = new Animator(prop, script);
 
     this.animators.push(animator);
 
@@ -630,6 +646,10 @@ define('production/ccp/res/Ship',["lib/gl-matrix"], function(glMatrix) {
     this.transform = glMatrix.mat4.identity();
   };
 
+  Ship.prototype.getBoundingSphereRadius = function() {
+    return this.obj.getBoundingSphere()[1];
+  };
+
   Ship.prototype.getStateData = function(dest) {
     var result = dest || {};
 
@@ -682,12 +702,44 @@ The planet wrapper
 @module Client
 @class Planet
 */
-define('production/ccp/res/Planet',[], function() {
+define('production/ccp/res/Planet',["lib/gl-matrix"], function(glMatrix) {
   
 
-  var Planet = function(ccpwgl, obj) {
-    this.ccpwgl = ccpwgl;
+  var Planet = function(obj) {
     this.obj = obj;
+
+    this.position = glMatrix.vec3.create();
+    this.rotation = glMatrix.quat4.identity();
+    this.radius = 1;
+    this.transform = glMatrix.mat4.identity();
+  };
+
+  Planet.prototype.getBoundingSphereRadius = function() {
+    return this.radius;
+  };
+
+  Planet.prototype.getStateData = function(dest) {
+    var result = dest || {};
+
+    result.position = glMatrix.vec3.set(this.position, result.position || [0, 0, 0]);
+    result.rotation = glMatrix.quat4.set(this.rotation, result.rotation || [0, 0, 0, 1]);
+    result.radius = this.radius;
+
+    return result;
+  };
+
+  Planet.prototype.setStateData = function(data) {
+    glMatrix.vec3.set(data.position, this.position);
+    glMatrix.quat4.set(data.rotation, this.rotation);
+    this.radius = data.radius;
+
+    glMatrix.mat4.fromRotationTranslation(this.rotation, [0, 0, 0], this.transform);
+    glMatrix.mat4.scale(this.transform, [this.radius / 2, this.radius / 2, this.radius / 2]);
+    this.transform[12] = this.position[0];
+    this.transform[13] = this.position[1];
+    this.transform[14] = this.position[2];
+
+    this.obj.setTransform(this.transform);
   };
 
   return Planet;
@@ -712,7 +764,7 @@ define('production/ccp/res/PlanetArchetype',["production/ccp/res/Planet"], funct
   PlanetArchetype.prototype.request = function(ccpwgl, scene, deferred) {
     var obj = scene.loadPlanet(this.itemId, this.resourceUrl, this.atmosphereUrl, this.heightMap1Url, this.heightMap2Url);
 
-    deferred.resolve(new Planet(ccpwgl, scene, obj));
+    deferred.resolve(new Planet(obj));
   };
 
   PlanetArchetype.prototype.setItemId = function(value) {
@@ -727,7 +779,7 @@ define('production/ccp/res/PlanetArchetype',["production/ccp/res/Planet"], funct
     return this;
   };
 
-  PlanetArchetype.prototype.setAtomsphereUrl = function(value) {
+  PlanetArchetype.prototype.setAtmosphereUrl = function(value) {
     this.atmosphereUrl = value;
 
     return this;
@@ -759,6 +811,10 @@ define('production/Track',[], function() {
   var Track = function(data) {
     this.data = data;
     this.currentFrame = 0;
+  };
+
+  Track.prototype.getLength = function() {
+    return this.data.length;
   };
 
   Track.prototype.setCurrentFrame = function(index) {
@@ -806,6 +862,57 @@ define('production/Track',[], function() {
 
   return Track;
 });
+/**
+A reel contains one or more tracks and keeps them in sync
+
+@module Client
+@class Reel
+*/
+define('production/Reel',[], function() {
+  
+
+  var Reel = function() {
+    this.tracks = [];
+    this.currentFrame = 0;
+  };
+
+  Reel.prototype.getPosition = function() {
+    return this.currentFrame;
+  };
+
+  Reel.prototype.getLength = function() {
+    var length = 0;
+
+    this.tracks.forEach(function(track) {
+      var trackLength = track.getLength();
+
+      if (trackLength > length) {
+        length = trackLength;
+      }
+    });
+
+    return length;
+  };
+
+  Reel.prototype.addTrack = function(track) {
+    this.tracks.push(track);
+    track.setCurrentFrame(this.currentFrame);
+  };
+
+  Reel.prototype.skipTo = function(frame) {
+    this.currentFrame = frame;
+    this.tracks.forEach(function(track) {
+      track.setCurrentFrame(frame);
+    });
+  };
+
+  Reel.prototype.nextFrame = function() {
+    this.skipTo(this.currentFrame + 1);
+  };
+
+  return Reel;
+});
+/* jshint maxparams:10 */
 /* global console */
 /**
 The ApplicationController is the master controller for the app
@@ -813,9 +920,9 @@ The ApplicationController is the master controller for the app
 @module Client
 @class ApplicationController
 */
-define('ApplicationController',["production/Resources", "controls/GamepadApi", "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/Track"],
+define('ApplicationController',["production/Resources", "controls/GamepadApi", "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/Track", "production/Reel"],
 
-function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
+function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track, Reel) {
   
 
   var addShip = function(modelView, url) {
@@ -824,6 +931,18 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
     };
 
     modelView.ships.push(ship);
+  };
+
+  var addPlanet = function(modelView, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
+    var arch = new PlanetArchetype();
+
+    arch.setItemId(itemId);
+    arch.setResourceUrl(resourceUrl);
+    arch.setAtmosphereUrl(atmosphereUrl);
+    arch.setHeightMap1Url(heightMap1Url);
+    arch.setHeightMap2Url(heightMap2Url);
+
+    modelView.planets.push(arch);
   };
 
   var initModelView = function(modelView, controller, config) {
@@ -842,11 +961,27 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
       controller.testCreateShip(ship.url);
     };
 
+    modelView.loadPlanet = function(arch) {
+      controller.testCreatePlanet(arch);
+    };
+
     modelView.ships = [];
     addShip(modelView, "res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
     addShip(modelView, "res:/dx9/model/ship/gallente/Cruiser/GC3/CreoDron/GC3_T2_CreoDron.red");
     addShip(modelView, "res:/dx9/model/ship/amarr/at1/at1.red");
     addShip(modelView, "res:/dx9/model/ship/jove/capsule/capsule.red");
+
+    modelView.planets = [];
+    addPlanet(modelView, 40000002,
+      "res:/dx9/model/WorldObject/Planet/Template/Terrestrial/P_Terrestrial_61.red",
+      undefined,
+      "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial03_H.png",
+      "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial04_H.png");
+    addPlanet(modelView, 40000100,
+      "res:/dx9/model/WorldObject/Planet/Template/Gas/P_GasGiant_12.red",
+      undefined,
+      "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png",
+      "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
   };
 
   var ApplicationController = function(modelView, config, productionManager, mainScreen) {
@@ -868,35 +1003,60 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
       modelView.testName = err;
       modelView.$apply();
     });
-
-    this.frameIndex = 0;
-    this.track = new Track([]);
   };
 
-  ApplicationController.prototype.testCreatePlanet = function() {
-    var planetArch = new PlanetArchetype();
+  ApplicationController.prototype.testCreatePlanet = function(arch) {
+    var planetPromise = this.set.getStage().enter(arch);
+    var sceneCamera = this.set.getSceneCamera();
 
-    planetArch.setItemId(40000100);
-    planetArch.setResourceUrl("res:/dx9/model/WorldObject/Planet/Template/Gas/P_GasGiant_12.red");
-    planetArch.setHeightMap1Url("res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png");
-    planetArch.setHeightMap2Url("res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
+    planetPromise.then(function(planet) {
+      var stateData = planet.getStateData();
+      var cameraPos = sceneCamera.getPosition();
 
-    this.set.getStage().enter(planetArch);
+      stateData.radius = 5000;
+
+      sceneCamera.rotateModelVectorByModelRotation(stateData.position, 0.0, 0.0, -stateData.radius * 1.0);
+      stateData.position[0] += cameraPos[0] * -1;
+      stateData.position[1] += cameraPos[1] * -1;
+      stateData.position[2] += cameraPos[2] * -1;
+      planet.setStateData(stateData);
+    });
   };
 
   ApplicationController.prototype.testCreateShip = function(resourceUrl) {
     var shipArch = new ShipArchetype();
     var that = this;
+    var sceneCamera = this.set.getSceneCamera();
 
     shipArch.setResourceUrl(resourceUrl);
 
     var shipPromise = this.set.getStage().enter(shipArch);
 
-    shipPromise.then(function(ship) {
-      //var animator = that.stageManager.getAnimator(ship);
-      //var animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
+    this.animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
 
-      //animator.setCommandChannel(animCommands);
+    shipPromise.then(function(ship) {
+      var track = new Track([]);
+      var animator = that.stageManager.getAnimator(ship, track);
+      var stateData = ship.getStateData();
+      var radius = ship.getBoundingSphereRadius();
+      var cameraPos = sceneCamera.getPosition();
+
+      if (radius < 10.0) {
+        radius = 10.0;
+      }
+
+      sceneCamera.rotateModelVectorByModelRotation(stateData.position, 0.0, 0.0, -radius * 1.5);
+      stateData.position[0] += cameraPos[0] * -1;
+      stateData.position[1] += cameraPos[1] * -1;
+      stateData.position[2] += cameraPos[2] * -1;
+      ship.setStateData(stateData);
+
+      that.reel.addTrack(track);
+      if (that.selectedShipAnim) {
+        that.selectedShipAnim.setCommandChannel(null);
+      }
+      //animator.setCommandChannel(that.animCommands);
+      //that.selectedShipAnim = animator;
     });
     //ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
   };
@@ -997,12 +1157,14 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
     this.set = set;
 
     this.director = new Resources.Director();
+    this.reel = new Reel();
 
     var camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
 
     this.camera = new Resources.Camera(set.getSceneCamera());
-    this.cameraOperator = new Resources.CameraOperator(camCommands, this.track);
+    this.cameraOperator = new Resources.CameraOperator(camCommands, new Track([]));
     this.camera.setOperator(this.cameraOperator);
+    //this.cameraOperator.setManualMode(false);
 
     this.stageManager = new Resources.StageManager(set.getStage());
 
@@ -1015,30 +1177,39 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track) {
     set.getSyncSource().setCallback(function() {
       // TODO: move this to some general time keeper
 
-      that.track.setCurrentFrame(that.frameCounter++);
-
       that.stageManager.updateStage();
       that.camera.updateFrame();
+
+      that.reel.nextFrame();
     });
 
   };
 
   ApplicationController.prototype.record = function() {
-    this.frameCounter = 0;
-    this.cameraOperator.setManualMode(true);
-    this.track.setRecording(true);
+    this.reel.skipTo(0);
+    //this.cameraOperator.setManualMode(true);
+
+    var track = this.selectedShipAnim.getScript();
+    this.selectedShipAnim.setCommandChannel(this.animCommands);
+    track.setRecording(true);
   };
 
   ApplicationController.prototype.stop = function() {
-    this.frameCounter = 0;
-    this.cameraOperator.setManualMode(true);
-    this.track.setRecording(false);
+    this.reel.skipTo(0);
+    //this.cameraOperator.setManualMode(true);
+
+    var track = this.selectedShipAnim.getScript();
+    this.selectedShipAnim.setCommandChannel(null);
+    track.setRecording(false);
   };
 
   ApplicationController.prototype.play = function() {
-    this.frameCounter = 0;
-    this.cameraOperator.setManualMode(false);
-    this.track.setRecording(false);
+    this.reel.skipTo(0);
+    //this.cameraOperator.setManualMode(false);
+
+    var track = this.selectedShipAnim.getScript();
+    this.selectedShipAnim.setCommandChannel(null);
+    track.setRecording(false);
   };
 
   /**
@@ -1248,6 +1419,24 @@ define('production/ccp/SceneCamera',["lib/gl-matrix", "util/GlHelper"], function
 
   SceneCamera.prototype.setModelRotation = function(rotation) {
     glMatrix.quat4.set(rotation, this.modelRotation);
+  };
+
+  /**
+    This method rotates coordinates in model space according to the view rotation
+    
+    @method rotateModelVectorByModelRotation
+    @param dest {vec3} destination to be filled
+    @param right {Number} the right coordinate (in model space)
+    @param up {Number} the up coordinate (in model space)
+    @param forward {Number} the forward coordinate (in model space)
+    @return {vec3} the result (dest)
+  */
+  SceneCamera.prototype.rotateModelVectorByModelRotation = function(dest, right, up, forward) {
+    // The rotation is still in terms of view directions, so the coordinates need to be converted
+    return helper.rotateVectorByView(dest, this.modelRotation,
+      right * helper.MODEL_DIRECTION_RIGHT * helper.VIEW_DIRECTION_RIGHT,
+      up * helper.MODEL_DIRECTION_UP * helper.VIEW_DIRECTION_UP,
+      forward * helper.MODEL_DIRECTION_FORWARD * helper.VIEW_DIRECTION_FORWARD);
   };
 
   return SceneCamera;

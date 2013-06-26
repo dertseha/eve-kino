@@ -64,6 +64,14 @@ define(["lib/gl-matrix"], function(glMatrix) {
     */
     degreeToRad: function(degrees) {
       return degrees * oneDegreeInRad;
+    },
+
+    rotateVectorByView: function(dest, rotation, right, up, forward) {
+      dest[0] = right * viewDirections.rightward;
+      dest[1] = up * viewDirections.upward;
+      dest[2] = forward * viewDirections.forward;
+
+      return glMatrix.quat4.multiplyVec3(rotation, dest);
     }
   };
 

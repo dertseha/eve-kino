@@ -98,5 +98,23 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
     glMatrix.quat4.set(rotation, this.modelRotation);
   };
 
+  /**
+    This method rotates coordinates in model space according to the view rotation
+    
+    @method rotateModelVectorByModelRotation
+    @param dest {vec3} destination to be filled
+    @param right {Number} the right coordinate (in model space)
+    @param up {Number} the up coordinate (in model space)
+    @param forward {Number} the forward coordinate (in model space)
+    @return {vec3} the result (dest)
+  */
+  SceneCamera.prototype.rotateModelVectorByModelRotation = function(dest, right, up, forward) {
+    // The rotation is still in terms of view directions, so the coordinates need to be converted
+    return helper.rotateVectorByView(dest, this.modelRotation,
+      right * helper.MODEL_DIRECTION_RIGHT * helper.VIEW_DIRECTION_RIGHT,
+      up * helper.MODEL_DIRECTION_UP * helper.VIEW_DIRECTION_UP,
+      forward * helper.MODEL_DIRECTION_FORWARD * helper.VIEW_DIRECTION_FORWARD);
+  };
+
   return SceneCamera;
 });

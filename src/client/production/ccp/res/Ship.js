@@ -16,6 +16,10 @@ define(["lib/gl-matrix"], function(glMatrix) {
     this.transform = glMatrix.mat4.identity();
   };
 
+  Ship.prototype.getBoundingSphereRadius = function() {
+    return this.obj.getBoundingSphere()[1];
+  };
+
   Ship.prototype.getStateData = function(dest) {
     var result = dest || {};
 
