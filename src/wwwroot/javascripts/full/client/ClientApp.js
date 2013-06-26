@@ -1,5 +1,37 @@
 
 /**
+Containing defaults
+
+@module Client
+@class Defaults
+*/
+define('Defaults',[], function() {
+  
+
+  var defaults = {
+    inputsByAction: {}
+  };
+
+  var addActionInput = function(actionName, inputName) {
+    defaults.inputsByAction[actionName] = inputName;
+  };
+
+  addActionInput("yawLeft", "RIGHT_STICK_X_NEG");
+  addActionInput("yawRight", "RIGHT_STICK_X_POS");
+  addActionInput("pitchUp", "RIGHT_STICK_Y_POS");
+  addActionInput("pitchDown", "RIGHT_STICK_Y_NEG");
+  addActionInput("rollClockwise", "LEFT_STICK_X_POS");
+  addActionInput("rollCounter", "LEFT_STICK_X_NEG");
+  addActionInput("moveForward", "RB");
+  addActionInput("moveBackward", "LB");
+  addActionInput("moveLeft", "X");
+  addActionInput("moveRight", "B");
+  addActionInput("moveUp", "Y");
+  addActionInput("moveDown", "A");
+
+  return defaults;
+});
+/**
 The helper is a static object providing some helper constants and functions.
 
 @module Client
@@ -920,9 +952,9 @@ The ApplicationController is the master controller for the app
 @module Client
 @class ApplicationController
 */
-define('ApplicationController',["production/Resources", "controls/GamepadApi", "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/Track", "production/Reel"],
+define('ApplicationController',["Defaults", "production/Resources", "controls/GamepadApi", "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/Track", "production/Reel"],
 
-function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track, Reel) {
+function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track, Reel) {
   
 
   var addShip = function(modelView, url) {
@@ -1062,72 +1094,13 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track, Reel) {
   };
 
   ApplicationController.prototype.createDefaultBindings = function() {
-    this.director.addBinding({
-      actionName: "yawLeft"
-    }, {
-      inputName: "RIGHT_STICK_X_NEG"
-    });
-    this.director.addBinding({
-      actionName: "yawRight"
-    }, {
-      inputName: "RIGHT_STICK_X_POS"
-    });
-
-    this.director.addBinding({
-      actionName: "pitchUp"
-    }, {
-      inputName: "RIGHT_STICK_Y_POS"
-    });
-    this.director.addBinding({
-      actionName: "pitchDown"
-    }, {
-      inputName: "RIGHT_STICK_Y_NEG"
-    });
-
-    this.director.addBinding({
-      actionName: "rollClockwise"
-    }, {
-      inputName: "LEFT_STICK_X_POS"
-    });
-    this.director.addBinding({
-      actionName: "rollCounter"
-    }, {
-      inputName: "LEFT_STICK_X_NEG"
-    });
-
-    this.director.addBinding({
-      actionName: "moveForward"
-    }, {
-      inputName: "RB"
-    });
-    this.director.addBinding({
-      actionName: "moveBackward"
-    }, {
-      inputName: "LB"
-    });
-
-    this.director.addBinding({
-      actionName: "moveLeft"
-    }, {
-      inputName: "X"
-    });
-    this.director.addBinding({
-      actionName: "moveRight"
-    }, {
-      inputName: "B"
-    });
-
-    this.director.addBinding({
-      actionName: "moveUp"
-    }, {
-      inputName: "Y"
-    });
-    this.director.addBinding({
-      actionName: "moveDown"
-    }, {
-      inputName: "A"
-    });
-
+    for (var actionName in defaults.inputsByAction) {
+      this.director.addBinding({
+        actionName: actionName
+      }, {
+        inputName: defaults.inputsByAction[actionName]
+      });
+    }
   };
 
   ApplicationController.prototype.setupGamepadInput = function() {
@@ -1164,11 +1137,8 @@ function(Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track, Reel) {
     this.camera = new Resources.Camera(set.getSceneCamera());
     this.cameraOperator = new Resources.CameraOperator(camCommands, new Track([]));
     this.camera.setOperator(this.cameraOperator);
-    //this.cameraOperator.setManualMode(false);
 
     this.stageManager = new Resources.StageManager(set.getStage());
-
-    //this.testCreateShip();
 
     this.createDefaultBindings();
 
