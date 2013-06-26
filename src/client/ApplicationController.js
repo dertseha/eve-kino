@@ -32,7 +32,7 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track,
   };
 
   var initModelView = function(modelView, controller, config) {
-    modelView.testName = config.test;
+    modelView.status = "Initializing...";
     modelView.record = function() {
       controller.record();
     };
@@ -84,9 +84,11 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track,
 
     promisedSet.then(function(set) {
       that.onSetCreated(set);
+      modelView.status = "Set created";
+      modelView.$apply();
     }, function(err) {
       console.log("Init error: " + err);
-      modelView.testName = err;
+      modelView.status = err;
       modelView.$apply();
     });
   };

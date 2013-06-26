@@ -1,28 +1,24 @@
 extends layout
 
 block content
-  h1 eve-kino
-
   div(data-ng-controller="ApplicationController")
-    label Name:
-    input(type="text", ng-model="testName", placeholder="Enter a name here")
-    span Hello {{testName}}!
-    br
-    select(ng-model="selectedShip", ng-options="ship as ship.url for ship in ships", size="5")
-    pre
-    | {{selectedShip | json}}
-    button(ng-click="loadShip(selectedShip)") Load Ship
-    br
-    select(ng-model="selectedPlanet", ng-options="planet as planet.resourceUrl for planet in planets", size="5")
-    pre
-    | {{selectedPlanet | json}}
-    button(ng-click="loadPlanet(selectedPlanet)") Load Planet
-    br
-    canvas(id="mainScreen")
-    br
-    button(ng-click="record()") Record 
-    button(ng-click="pause()") Pause
-    button(ng-click="play()") Play
+    span Status: {{status}}
+    div(id="shipCreation")
+      select(ng-model="selectedShip", ng-options="ship as ship.url for ship in ships", size="5")
+      pre
+      | {{selectedShip | json}}
+      button(ng-click="loadShip(selectedShip)") Load Ship
+    div(id="planetSelection")
+      select(ng-model="selectedPlanet", ng-options="planet as planet.resourceUrl for planet in planets", size="5")
+      pre
+      | {{selectedPlanet | json}}
+      button(ng-click="loadPlanet(selectedPlanet)") Load Planet
+    div(id="view")
+      canvas(id="mainScreen")
+    div(id="controls")
+      button(ng-click="record()") Record 
+      button(ng-click="pause()") Pause
+      button(ng-click="play()") Play
 
   script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/gamepad.js")
   script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/gl-matrix.js")
