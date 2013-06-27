@@ -15,12 +15,12 @@ define(["lib/gl-matrix"], function(glMatrix) {
 
   var oneDegreeInRad = Math.PI / 180.0;
   var viewDirections = {
-    forward: 1.0,
+    forward: -1.0,
     upward: -1.0,
-    rightward: -1.0
+    rightward: 1.0
   };
   var viewRotations = {
-    rollClockwise: 1.0,
+    rollClockwise: -1.0,
     pitchUp: -1.0,
     yawRight: -1.0
   };
@@ -68,14 +68,6 @@ define(["lib/gl-matrix"], function(glMatrix) {
     */
     degreeToRad: function(degrees) {
       return degrees * oneDegreeInRad;
-    },
-
-    rotateVectorByView: function(dest, rotation, right, up, forward) {
-      dest[0] = right * viewDirections.rightward;
-      dest[1] = up * viewDirections.upward;
-      dest[2] = forward * viewDirections.forward;
-
-      return glMatrix.quat4.multiplyVec3(rotation, dest);
     }
   };
 

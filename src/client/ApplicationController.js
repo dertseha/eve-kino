@@ -104,19 +104,6 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     });
   };
 
-  ApplicationController.prototype.placeObjectInFrontOfCamera = function(obj, distance) {
-    var sceneCamera = this.set.getSceneCamera();
-    var stateData = obj.getStateData();
-    var cameraPos = sceneCamera.getPosition();
-    var offset = distance > 10.0 ? distance : 10.0;
-
-    sceneCamera.rotateModelVectorByModelRotation(stateData.position, 0.0, 0.0, -offset);
-    stateData.position[0] += cameraPos[0] * -1;
-    stateData.position[1] += cameraPos[1] * -1;
-    stateData.position[2] += cameraPos[2] * -1;
-    obj.setStateData(stateData);
-  };
-
   ApplicationController.prototype.addProp = function(arch) {
     var that = this;
     var propPromise = this.set.getStage().enter(arch);
@@ -124,10 +111,12 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     propPromise.then(function(prop) {
       var radius = prop.getBoundingSphereRadius();
 
-      that.placeObjectInFrontOfCamera(prop, radius);
+      that.cameraOperator.placeObjectInFrontOfCamera(prop, radius);
 
       that.createScriptedAnimatorForProp(prop);
       that.setFocusOnProp(prop);
+
+      that.cameraOperator.setChaseObject(prop);
     });
   };
 
@@ -222,6 +211,7 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     this.focusTrack = this.cameraOperator.getShotList();
     this.focusCommandChannel = this.camCommands;
 
+    this.cameraOperator.setChaseObject(null);
     this.focusTarget.setCommandChannel(this.focusCommandChannel);
   };
 

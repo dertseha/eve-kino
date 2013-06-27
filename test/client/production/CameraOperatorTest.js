@@ -9,7 +9,7 @@ define(["production/CameraOperator", "production/Track"], function(CameraOperato
     var cameraState = {
       position: [0, 0, 0],
       rotation: [0, 0, 0, 1],
-      modelRotation: [0, 0, 0, 1]
+      viewOffset: [0, 0, 0]
     };
 
     return cameraState;

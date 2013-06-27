@@ -14,7 +14,6 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
     this.farPlane = 100000;
 
     this.rotation = glMatrix.quat4.identity();
-    this.modelRotation = glMatrix.quat4.identity();
     this.position = glMatrix.vec3.create();
     this.viewOffset = glMatrix.vec3.create();
 
@@ -58,18 +57,22 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
   SceneCamera.prototype.getStateData = function(dest) {
     var result = dest || {};
 
+    result.viewOffset = this.getViewOffset(result.viewOffset);
     result.position = this.getPosition(result.position);
     result.rotation = this.getRotation(result.rotation);
-    result.modelRotation = this.getModelRotation(result.modelRotation);
 
     return result;
   };
 
   SceneCamera.prototype.setStateData = function(data) {
+    glMatrix.vec3.set(data.viewOffset, this.viewOffset);
     glMatrix.vec3.set(data.position, this.position);
     glMatrix.quat4.set(data.rotation, this.rotation);
-    glMatrix.quat4.set(data.modelRotation, this.modelRotation);
     this.onViewChanged();
+  };
+
+  SceneCamera.prototype.getViewOffset = function(dest) {
+    return glMatrix.vec3.set(this.viewOffset, dest || [0, 0, 0]);
   };
 
   SceneCamera.prototype.getPosition = function(dest) {
@@ -88,32 +91,6 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
   SceneCamera.prototype.setRotation = function(rotation) {
     glMatrix.quat4.set(rotation, this.rotation);
     this.onViewChanged();
-  };
-
-  SceneCamera.prototype.getModelRotation = function(dest) {
-    return glMatrix.quat4.set(this.modelRotation, dest || [0, 0, 0, 0]);
-  };
-
-  SceneCamera.prototype.setModelRotation = function(rotation) {
-    glMatrix.quat4.set(rotation, this.modelRotation);
-  };
-
-  /**
-    This method rotates coordinates in model space according to the view rotation
-    
-    @method rotateModelVectorByModelRotation
-    @param dest {vec3} destination to be filled
-    @param right {Number} the right coordinate (in model space)
-    @param up {Number} the up coordinate (in model space)
-    @param forward {Number} the forward coordinate (in model space)
-    @return {vec3} the result (dest)
-  */
-  SceneCamera.prototype.rotateModelVectorByModelRotation = function(dest, right, up, forward) {
-    // The rotation is still in terms of view directions, so the coordinates need to be converted
-    return helper.rotateVectorByView(dest, this.modelRotation,
-      right * helper.MODEL_DIRECTION_RIGHT * helper.VIEW_DIRECTION_RIGHT,
-      up * helper.MODEL_DIRECTION_UP * helper.VIEW_DIRECTION_UP,
-      forward * helper.MODEL_DIRECTION_FORWARD * helper.VIEW_DIRECTION_FORWARD);
   };
 
   return SceneCamera;

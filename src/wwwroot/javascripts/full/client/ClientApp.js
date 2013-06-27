@@ -48,12 +48,12 @@ define('util/GlHelper',["lib/gl-matrix"], function(glMatrix) {
 
   var oneDegreeInRad = Math.PI / 180.0;
   var viewDirections = {
-    forward: 1.0,
+    forward: -1.0,
     upward: -1.0,
-    rightward: -1.0
+    rightward: 1.0
   };
   var viewRotations = {
-    rollClockwise: 1.0,
+    rollClockwise: -1.0,
     pitchUp: -1.0,
     yawRight: -1.0
   };
@@ -101,14 +101,6 @@ define('util/GlHelper',["lib/gl-matrix"], function(glMatrix) {
     */
     degreeToRad: function(degrees) {
       return degrees * oneDegreeInRad;
-    },
-
-    rotateVectorByView: function(dest, rotation, right, up, forward) {
-      dest[0] = right * viewDirections.rightward;
-      dest[1] = up * viewDirections.upward;
-      dest[2] = forward * viewDirections.forward;
-
-      return glMatrix.quat4.multiplyVec3(rotation, dest);
     }
   };
 
@@ -424,27 +416,38 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
       "pitchUp", "pitchDown", "rollClockwise", "rollCounter", "yawRight", "yawLeft",
       "moveUp", "moveDown", "moveForward", "moveBackward", "moveRight", "moveLeft"
   ];
-  var tempQuat = glMatrix.quat4.create();
+
   var tempVec3 = glMatrix.vec3.create();
 
-  var rotateViewOrientation = function(dest, roll, pitch, yaw) {
-    glMatrix.quat4.fromAngleAxis(roll * helper.VIEW_ROTATION_ROLL_CLOCKWISE, helper.VIEW_VECTOR_FORWARD, tempQuat);
-    glMatrix.quat4.multiply(tempQuat, dest, dest);
-    glMatrix.quat4.fromAngleAxis(pitch * helper.VIEW_ROTATION_PITCH_UP, helper.VIEW_VECTOR_RIGHT, tempQuat);
-    glMatrix.quat4.multiply(tempQuat, dest, dest);
-    glMatrix.quat4.fromAngleAxis(yaw * helper.VIEW_ROTATION_YAW_RIGHT, helper.VIEW_VECTOR_UP, tempQuat);
-    glMatrix.quat4.multiply(tempQuat, dest, dest);
+  var rotateViewOrientation = (function() {
+    var tempQuat = glMatrix.quat4.create();
+
+    return function(dest, roll, pitch, yaw) {
+      glMatrix.quat4.fromAngleAxis(roll * helper.VIEW_ROTATION_ROLL_CLOCKWISE, helper.VIEW_VECTOR_FORWARD, tempQuat);
+      glMatrix.quat4.multiply(tempQuat, dest, dest);
+      glMatrix.quat4.fromAngleAxis(pitch * helper.VIEW_ROTATION_PITCH_UP, helper.VIEW_VECTOR_RIGHT, tempQuat);
+      glMatrix.quat4.multiply(tempQuat, dest, dest);
+      glMatrix.quat4.fromAngleAxis(yaw * helper.VIEW_ROTATION_YAW_RIGHT, helper.VIEW_VECTOR_UP, tempQuat);
+      glMatrix.quat4.multiply(tempQuat, dest, dest);
+    };
+  })();
+
+  var getModelRotationFromViewRotation = function(viewRotation, result) {
+    glMatrix.quat4.set(viewRotation, result);
+    rotateViewOrientation(result, 0, 0, -Math.PI);
+    glMatrix.quat4.inverse(result);
   };
 
-  var rotateModelOrientation = function(dest, roll, pitch, yaw) {
-    // After determining the model rotations, I have no idea what logic happens here. It just works.
-    glMatrix.quat4.fromAngleAxis(roll * -1, helper.VIEW_VECTOR_FORWARD, tempQuat);
-    glMatrix.quat4.multiply(dest, tempQuat, dest);
-    glMatrix.quat4.fromAngleAxis(pitch, helper.VIEW_VECTOR_RIGHT, tempQuat);
-    glMatrix.quat4.multiply(dest, tempQuat, dest);
-    glMatrix.quat4.fromAngleAxis(yaw, helper.VIEW_VECTOR_UP, tempQuat);
-    glMatrix.quat4.multiply(dest, tempQuat, dest);
-  };
+  var rotateModelVectorByViewRotation = (function() {
+    var tempQuat = glMatrix.quat4.create();
+
+    return function(viewRotation, modelVector) {
+      getModelRotationFromViewRotation(viewRotation, tempQuat);
+      glMatrix.quat4.multiplyVec3(tempQuat, modelVector);
+
+      return modelVector;
+    };
+  })();
 
   var CameraOperator = function(camera, shotList) {
     this.camera = camera;
@@ -471,13 +474,34 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
     this.commandChannel = commandChannel;
   };
 
+  CameraOperator.prototype.setChaseObject = function(object) {
+    this.chaseObject = object;
+  };
+
+  CameraOperator.prototype.placeObjectInFrontOfCamera = function(object, distance) {
+    var objectState = object.getStateData();
+    var cameraState = this.camera.getStateData();
+    var offset = distance > 10.0 ? distance : 10.0;
+
+    // align objects rotation to that of camera
+    getModelRotationFromViewRotation(cameraState.rotation, objectState.rotation);
+    // position object in front
+    objectState.position = [0, 0, offset];
+    glMatrix.quat4.multiplyVec3(objectState.rotation, objectState.position);
+    glMatrix.vec3.subtract(objectState.position, cameraState.position);
+
+    object.setStateData(objectState);
+  };
+
   CameraOperator.prototype.updateCamera = function() {
     var camera = this.camera;
     var lastState = camera.getStateData(this.lastState);
     var newState = camera.getStateData();
     var recordedState = this.shotList.getFrameData() || newState;
 
-    if (this.commandChannel) {
+    if (this.chaseObject) {
+      newState = this.updateByChase(newState, lastState);
+    } else if (this.commandChannel) {
       newState = this.updateByCommands(newState, lastState, recordedState);
     } else {
       newState = recordedState;
@@ -486,6 +510,21 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
     camera.setStateData(newState);
     this.shotList.setFrameData(newState);
     this.lastState = lastState;
+  };
+
+  CameraOperator.prototype.updateByChase = function(newState, lastState) {
+    var chaseData = this.chaseObject.getStateData();
+    var radius = this.chaseObject.getBoundingSphereRadius();
+
+    glMatrix.vec3.negate(chaseData.position, newState.position);
+
+    glMatrix.quat4.set(chaseData.rotation, newState.rotation);
+    glMatrix.quat4.inverse(newState.rotation);
+    rotateViewOrientation(newState.rotation, 0, helper.degreeToRad(-1.0) * helper.VIEW_ROTATION_PITCH_UP, Math.PI);
+
+    glMatrix.vec3.set([0, -radius * 0.5, -radius * 2.0], newState.viewOffset);
+
+    return newState;
   };
 
   CameraOperator.prototype.updateByCommands = function(newState, lastState, recordedState) {
@@ -498,15 +537,15 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
     var forward = (commands.moveForward - commands.moveBackward);
 
     rotateViewOrientation(newState.rotation, roll, pitch, yaw);
-    rotateModelOrientation(newState.modelRotation, roll, pitch, yaw);
 
     tempVec3[0] = right * helper.VIEW_DIRECTION_RIGHT;
     tempVec3[1] = up * helper.VIEW_DIRECTION_UP;
     tempVec3[2] = forward * helper.VIEW_DIRECTION_FORWARD;
-    glMatrix.quat4.multiplyVec3(newState.modelRotation, tempVec3);
+    rotateModelVectorByViewRotation(newState.rotation, tempVec3);
     newState.position[0] += tempVec3[0];
     newState.position[1] += tempVec3[1];
     newState.position[2] += tempVec3[2];
+    newState.viewOffset[0] = newState.viewOffset[1] = newState.viewOffset[2] = 0;
 
     return newState;
   };
@@ -1119,19 +1158,6 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     });
   };
 
-  ApplicationController.prototype.placeObjectInFrontOfCamera = function(obj, distance) {
-    var sceneCamera = this.set.getSceneCamera();
-    var stateData = obj.getStateData();
-    var cameraPos = sceneCamera.getPosition();
-    var offset = distance > 10.0 ? distance : 10.0;
-
-    sceneCamera.rotateModelVectorByModelRotation(stateData.position, 0.0, 0.0, -offset);
-    stateData.position[0] += cameraPos[0] * -1;
-    stateData.position[1] += cameraPos[1] * -1;
-    stateData.position[2] += cameraPos[2] * -1;
-    obj.setStateData(stateData);
-  };
-
   ApplicationController.prototype.addProp = function(arch) {
     var that = this;
     var propPromise = this.set.getStage().enter(arch);
@@ -1139,10 +1165,12 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     propPromise.then(function(prop) {
       var radius = prop.getBoundingSphereRadius();
 
-      that.placeObjectInFrontOfCamera(prop, radius);
+      that.cameraOperator.placeObjectInFrontOfCamera(prop, radius);
 
       that.createScriptedAnimatorForProp(prop);
       that.setFocusOnProp(prop);
+
+      that.cameraOperator.setChaseObject(prop);
     });
   };
 
@@ -1237,6 +1265,7 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     this.focusTrack = this.cameraOperator.getShotList();
     this.focusCommandChannel = this.camCommands;
 
+    this.cameraOperator.setChaseObject(null);
     this.focusTarget.setCommandChannel(this.focusCommandChannel);
   };
 
@@ -1420,7 +1449,6 @@ define('production/ccp/SceneCamera',["lib/gl-matrix", "util/GlHelper"], function
     this.farPlane = 100000;
 
     this.rotation = glMatrix.quat4.identity();
-    this.modelRotation = glMatrix.quat4.identity();
     this.position = glMatrix.vec3.create();
     this.viewOffset = glMatrix.vec3.create();
 
@@ -1464,18 +1492,22 @@ define('production/ccp/SceneCamera',["lib/gl-matrix", "util/GlHelper"], function
   SceneCamera.prototype.getStateData = function(dest) {
     var result = dest || {};
 
+    result.viewOffset = this.getViewOffset(result.viewOffset);
     result.position = this.getPosition(result.position);
     result.rotation = this.getRotation(result.rotation);
-    result.modelRotation = this.getModelRotation(result.modelRotation);
 
     return result;
   };
 
   SceneCamera.prototype.setStateData = function(data) {
+    glMatrix.vec3.set(data.viewOffset, this.viewOffset);
     glMatrix.vec3.set(data.position, this.position);
     glMatrix.quat4.set(data.rotation, this.rotation);
-    glMatrix.quat4.set(data.modelRotation, this.modelRotation);
     this.onViewChanged();
+  };
+
+  SceneCamera.prototype.getViewOffset = function(dest) {
+    return glMatrix.vec3.set(this.viewOffset, dest || [0, 0, 0]);
   };
 
   SceneCamera.prototype.getPosition = function(dest) {
@@ -1494,32 +1526,6 @@ define('production/ccp/SceneCamera',["lib/gl-matrix", "util/GlHelper"], function
   SceneCamera.prototype.setRotation = function(rotation) {
     glMatrix.quat4.set(rotation, this.rotation);
     this.onViewChanged();
-  };
-
-  SceneCamera.prototype.getModelRotation = function(dest) {
-    return glMatrix.quat4.set(this.modelRotation, dest || [0, 0, 0, 0]);
-  };
-
-  SceneCamera.prototype.setModelRotation = function(rotation) {
-    glMatrix.quat4.set(rotation, this.modelRotation);
-  };
-
-  /**
-    This method rotates coordinates in model space according to the view rotation
-    
-    @method rotateModelVectorByModelRotation
-    @param dest {vec3} destination to be filled
-    @param right {Number} the right coordinate (in model space)
-    @param up {Number} the up coordinate (in model space)
-    @param forward {Number} the forward coordinate (in model space)
-    @return {vec3} the result (dest)
-  */
-  SceneCamera.prototype.rotateModelVectorByModelRotation = function(dest, right, up, forward) {
-    // The rotation is still in terms of view directions, so the coordinates need to be converted
-    return helper.rotateVectorByView(dest, this.modelRotation,
-      right * helper.MODEL_DIRECTION_RIGHT * helper.VIEW_DIRECTION_RIGHT,
-      up * helper.MODEL_DIRECTION_UP * helper.VIEW_DIRECTION_UP,
-      forward * helper.MODEL_DIRECTION_FORWARD * helper.VIEW_DIRECTION_FORWARD);
   };
 
   return SceneCamera;
