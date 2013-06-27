@@ -253,51 +253,6 @@ define('production/StageManager',["production/Animator"], function(Animator) {
   return StageManager;
 });
 /**
-The camera combines the scene camera (viewport) with an operator and a film.
-
-@module Client
-@class Camera
-*/
-define('production/Camera',[], function() {
-  
-
-  var nullOperator = {
-    getCameraStateData: function(lastState) {
-      return lastState;
-    }
-  };
-
-  var Camera = function(sceneCamera) {
-    this.sceneCamera = sceneCamera;
-    this.operator = nullOperator;
-
-    /**
-      @private
-      @property lastState buffer object to avoid creating new ones each frame
-    */
-    this.lastState = null;
-  };
-
-  Camera.getNullOperator = function() {
-    return Object.create(nullOperator);
-  };
-
-  Camera.prototype.setOperator = function(operator) {
-    this.operator = operator || nullOperator;
-  };
-
-  Camera.prototype.updateFrame = function() {
-    var sceneCamera = this.sceneCamera;
-    var lastState = sceneCamera.getStateData(this.lastState);
-    var newState = this.operator.getCameraStateData(sceneCamera.getStateData(), lastState);
-
-    sceneCamera.setStateData(newState);
-    this.lastState = lastState;
-  };
-
-  return Camera;
-});
-/**
 A command channel provides commands based on inputs
 
 @module Client
@@ -455,6 +410,7 @@ define('production/Director',["controls/CommandChannel", "controls/InputChannel"
 
   return Director;
 });
+/* global console */
 /**
 A camera operator handles a camera when directed to
 
@@ -490,9 +446,17 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
     glMatrix.quat4.multiply(dest, tempQuat, dest);
   };
 
-  var CameraOperator = function(shotList) {
-    this.commandChannel = null;
+  var CameraOperator = function(camera, shotList) {
+    this.camera = camera;
     this.shotList = shotList;
+
+    this.commandChannel = null;
+
+    /**
+      @private
+      @property lastState buffer object to avoid creating new ones each frame
+    */
+    this.lastState = null;
   };
 
   CameraOperator.getActionNames = function() {
@@ -507,21 +471,24 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
     this.commandChannel = commandChannel;
   };
 
-  CameraOperator.prototype.getCameraStateData = function(newState, lastState) {
+  CameraOperator.prototype.updateCamera = function() {
+    var camera = this.camera;
+    var lastState = camera.getStateData(this.lastState);
+    var newState = camera.getStateData();
     var recordedState = this.shotList.getFrameData() || newState;
 
     if (this.commandChannel) {
-      newState = this.getNewStateData(newState, lastState, recordedState);
+      newState = this.updateByCommands(newState, lastState, recordedState);
     } else {
       newState = recordedState;
     }
 
+    camera.setStateData(newState);
     this.shotList.setFrameData(newState);
-
-    return newState;
+    this.lastState = lastState;
   };
 
-  CameraOperator.prototype.getNewStateData = function(newState, lastState, recordedState) {
+  CameraOperator.prototype.updateByCommands = function(newState, lastState, recordedState) {
     var commands = this.commandChannel.getCommands();
     var roll = (commands.rollClockwise - commands.rollCounter) * 0.02;
     var pitch = (commands.pitchUp - commands.pitchDown) * 0.02;
@@ -551,13 +518,12 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
 @module Client
 @class Resource
 */
-define('production/Resources',["production/StageManager", "production/Camera", "production/Director", "production/CameraOperator"], function(StageManager, Camera, Director, CameraOperator) {
+define('production/Resources',["production/StageManager", "production/Director", "production/CameraOperator"], function(StageManager, Director, CameraOperator) {
   
 
   var resources = {
     StageManager: StageManager,
     Director: Director,
-    Camera: Camera,
     CameraOperator: CameraOperator
   };
 
@@ -1230,9 +1196,9 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
 
     this.camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
 
-    this.camera = new Resources.Camera(set.getSceneCamera());
-    this.cameraOperator = new Resources.CameraOperator(new Track([]));
-    this.camera.setOperator(this.cameraOperator);
+    var shotList = new Track([]);
+    this.reel.addTrack(shotList);
+    this.cameraOperator = new Resources.CameraOperator(set.getSceneCamera(), shotList);
     this.setFocusOnCamera();
 
     this.stageManager = new Resources.StageManager(set.getStage());
@@ -1248,7 +1214,7 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
       // TODO: move this to some general time keeper
 
       that.stageManager.updateStage();
-      that.camera.updateFrame();
+      that.cameraOperator.updateCamera();
 
       that.reelTransmission.update();
     });

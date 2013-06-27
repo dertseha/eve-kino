@@ -18,10 +18,21 @@ define(["production/CameraOperator", "production/Track"], function(CameraOperato
   buster.testCase("CameraOperator", {
     setUp: function() {
       var commands = {};
+
       this.commands = commands;
       CameraOperator.getActionNames().forEach(function(actionName) {
         commands[actionName] = 0.0;
       });
+
+      this.camera = {
+        cameraState: createEmptyCameraState(),
+        getStateData: function() {
+          return this.cameraState;
+        },
+        setStateData: function(state) {
+          this.cameraState = state;
+        }
+      };
 
       this.track = new Track([]);
 
@@ -30,16 +41,14 @@ define(["production/CameraOperator", "production/Track"], function(CameraOperato
           return commands;
         }
       };
-      this.operator = new CameraOperator(this.track);
+      this.operator = new CameraOperator(this.camera, this.track);
       this.operator.setCommandChannel(this.commandChannel);
-
-      this.cameraState = createEmptyCameraState();
     },
 
     "should leave camera state intact when no new commands": function() {
-      var result = this.operator.getCameraStateData(this.cameraState);
+      this.operator.updateCamera();
 
-      assert.equals(result, createEmptyCameraState());
+      assert.equals(this.camera.cameraState, createEmptyCameraState());
     },
 
     "should apply commands to camera state if given": function() {
@@ -47,9 +56,9 @@ define(["production/CameraOperator", "production/Track"], function(CameraOperato
       this.commands.moveUp = 0.02;
       this.commands.moveForward = 0.03;
 
-      var result = this.operator.getCameraStateData(this.cameraState);
+      this.operator.updateCamera();
 
-      refute.equals(result.position, [0, 0, 0]);
+      refute.equals(this.camera.cameraState.position, [0, 0, 0]);
     }
   });
 });

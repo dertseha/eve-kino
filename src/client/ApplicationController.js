@@ -181,9 +181,9 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
 
     this.camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
 
-    this.camera = new Resources.Camera(set.getSceneCamera());
-    this.cameraOperator = new Resources.CameraOperator(new Track([]));
-    this.camera.setOperator(this.cameraOperator);
+    var shotList = new Track([]);
+    this.reel.addTrack(shotList);
+    this.cameraOperator = new Resources.CameraOperator(set.getSceneCamera(), shotList);
     this.setFocusOnCamera();
 
     this.stageManager = new Resources.StageManager(set.getStage());
@@ -199,7 +199,7 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
       // TODO: move this to some general time keeper
 
       that.stageManager.updateStage();
-      that.camera.updateFrame();
+      that.cameraOperator.updateCamera();
 
       that.reelTransmission.update();
     });

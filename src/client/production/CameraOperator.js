@@ -1,3 +1,4 @@
+/* global console */
 /**
 A camera operator handles a camera when directed to
 
@@ -33,9 +34,17 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
     glMatrix.quat4.multiply(dest, tempQuat, dest);
   };
 
-  var CameraOperator = function(shotList) {
-    this.commandChannel = null;
+  var CameraOperator = function(camera, shotList) {
+    this.camera = camera;
     this.shotList = shotList;
+
+    this.commandChannel = null;
+
+    /**
+      @private
+      @property lastState buffer object to avoid creating new ones each frame
+    */
+    this.lastState = null;
   };
 
   CameraOperator.getActionNames = function() {
@@ -50,21 +59,24 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
     this.commandChannel = commandChannel;
   };
 
-  CameraOperator.prototype.getCameraStateData = function(newState, lastState) {
+  CameraOperator.prototype.updateCamera = function() {
+    var camera = this.camera;
+    var lastState = camera.getStateData(this.lastState);
+    var newState = camera.getStateData();
     var recordedState = this.shotList.getFrameData() || newState;
 
     if (this.commandChannel) {
-      newState = this.getNewStateData(newState, lastState, recordedState);
+      newState = this.updateByCommands(newState, lastState, recordedState);
     } else {
       newState = recordedState;
     }
 
+    camera.setStateData(newState);
     this.shotList.setFrameData(newState);
-
-    return newState;
+    this.lastState = lastState;
   };
 
-  CameraOperator.prototype.getNewStateData = function(newState, lastState, recordedState) {
+  CameraOperator.prototype.updateByCommands = function(newState, lastState, recordedState) {
     var commands = this.commandChannel.getCommands();
     var roll = (commands.rollClockwise - commands.rollCounter) * 0.02;
     var pitch = (commands.pitchUp - commands.pitchDown) * 0.02;
