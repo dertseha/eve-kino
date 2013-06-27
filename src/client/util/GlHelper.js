@@ -7,6 +7,12 @@ The helper is a static object providing some helper constants and functions.
 define(["lib/gl-matrix"], function(glMatrix) {
   "use strict";
 
+  // ccpwgl extends mat4 with this multiply3x3 function; Since glMatrix is
+  // re-loaded, this extension is lost, so reintroduce it here.
+  // The function seems to be based on multiplyVec3, but without the translation.
+  // For now let's set it equal, until artefacts are discovered.
+  glMatrix.mat4.multiply3x3 = glMatrix.mat4.multiplyVec3;
+
   var oneDegreeInRad = Math.PI / 180.0;
   var viewDirections = {
     forward: 1.0,
@@ -28,8 +34,6 @@ define(["lib/gl-matrix"], function(glMatrix) {
     pitchUp: 1.0,
     yawRight: -1.0
   };
-
-  var tempQuat = glMatrix.quat4.create();
 
   var helper = {
     VIEW_DIRECTION_FORWARD: viewDirections.forward,

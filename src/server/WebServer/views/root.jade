@@ -3,22 +3,17 @@ extends layout
 block content
   div(data-ng-controller="ApplicationController")
     span Status: {{status}}
-    div(id="shipCreation")
-      select(ng-model="selectedShip", ng-options="ship as ship.url for ship in ships", size="5")
-      pre
-      | {{selectedShip | json}}
-      button(ng-click="loadShip(selectedShip)") Load Ship
-    div(id="planetSelection")
-      select(ng-model="selectedPlanet", ng-options="planet as planet.resourceUrl for planet in planets", size="5")
-      pre
-      | {{selectedPlanet | json}}
-      button(ng-click="loadPlanet(selectedPlanet)") Load Planet
     div(id="view")
       canvas(id="mainScreen")
     div(id="controls")
       button(ng-click="record()") Record 
       button(ng-click="pause()") Pause
       button(ng-click="play()") Play
+    div(id="focusSelection")
+      button(ng-click="setFocusOnCamera()") Focus Camera
+    div(id="propCreation")
+      select(ng-model="selectedProp", ng-options="prop as prop.resourceUrl for prop in props", size="5")
+      button(ng-click="addProp(selectedProp)") Add Prop
 
   script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/gamepad.js")
   script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/gl-matrix.js")

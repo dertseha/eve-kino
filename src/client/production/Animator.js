@@ -11,6 +11,12 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
   var tempQuat = glMatrix.quat4.create();
   var tempVec3 = glMatrix.vec3.create();
 
+  var emptyScript = {
+    getFrameData: function() {
+      return null;
+    }
+  };
+
   var rotateModelOrientation = function(dest, roll, pitch, yaw) {
     glMatrix.quat4.fromAngleAxis(roll * helper.MODEL_ROTATION_ROLL_CLOCKWISE, helper.MODEL_VECTOR_FORWARD, tempQuat);
     glMatrix.quat4.multiply(dest, tempQuat, dest);
@@ -20,16 +26,24 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
     glMatrix.quat4.multiply(dest, tempQuat, dest);
   };
 
-  var Animator = function(prop, script) {
+  var Animator = function(prop) {
     this.prop = prop;
-    this.script = script;
+    this.script = emptyScript;
 
     this.commandChannel = null;
     this.lastState = null;
   };
 
+  Animator.prototype.setScript = function(script) {
+    this.script = script;
+  };
+
   Animator.prototype.getScript = function() {
     return this.script;
+  };
+
+  Animator.prototype.getProp = function() {
+    return this.prop;
   };
 
   Animator.prototype.setCommandChannel = function(commandChannel) {

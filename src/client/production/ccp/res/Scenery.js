@@ -1,27 +1,26 @@
 /**
-The planet wrapper
+The Scenery wrapper
 
 @module Client
-@class Planet
+@class Scenery
 */
 define(["lib/gl-matrix"], function(glMatrix) {
   "use strict";
 
-  var Planet = function(obj) {
+  var Scenery = function(ccpwgl, obj) {
+    this.ccpwgl = ccpwgl;
     this.obj = obj;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();
     this.transform = glMatrix.mat4.identity();
-
-    this.radius = 60 * 1000;
   };
 
-  Planet.prototype.getBoundingSphereRadius = function() {
-    return this.radius;
+  Scenery.prototype.getBoundingSphereRadius = function() {
+    return this.obj.getBoundingSphere()[1];
   };
 
-  Planet.prototype.getStateData = function(dest) {
+  Scenery.prototype.getStateData = function(dest) {
     var result = dest || {};
 
     result.position = glMatrix.vec3.set(this.position, result.position || [0, 0, 0]);
@@ -30,18 +29,13 @@ define(["lib/gl-matrix"], function(glMatrix) {
     return result;
   };
 
-  Planet.prototype.setStateData = function(data) {
+  Scenery.prototype.setStateData = function(data) {
     glMatrix.vec3.set(data.position, this.position);
     glMatrix.quat4.set(data.rotation, this.rotation);
 
-    glMatrix.mat4.fromRotationTranslation(this.rotation, [0, 0, 0], this.transform);
-    glMatrix.mat4.scale(this.transform, [this.radius / 2, this.radius / 2, this.radius / 2]);
-    this.transform[12] = this.position[0];
-    this.transform[13] = this.position[1];
-    this.transform[14] = this.position[2];
-
+    glMatrix.mat4.fromRotationTranslation(this.rotation, this.position, this.transform);
     this.obj.setTransform(this.transform);
   };
 
-  return Planet;
+  return Scenery;
 });

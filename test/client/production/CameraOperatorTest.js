@@ -30,7 +30,8 @@ define(["production/CameraOperator", "production/Track"], function(CameraOperato
           return commands;
         }
       };
-      this.operator = new CameraOperator(this.commandChannel, this.track);
+      this.operator = new CameraOperator(this.track);
+      this.operator.setCommandChannel(this.commandChannel);
 
       this.cameraState = createEmptyCameraState();
     },

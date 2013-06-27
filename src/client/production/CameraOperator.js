@@ -33,24 +33,27 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
     glMatrix.quat4.multiply(dest, tempQuat, dest);
   };
 
-  var CameraOperator = function(commandChannel, shotList) {
-    this.commandChannel = commandChannel;
+  var CameraOperator = function(shotList) {
+    this.commandChannel = null;
     this.shotList = shotList;
-    this.manualMode = true;
   };
 
   CameraOperator.getActionNames = function() {
     return actionNames.slice(0);
   };
 
-  CameraOperator.prototype.setManualMode = function(on) {
-    this.manualMode = on;
+  CameraOperator.prototype.getShotList = function() {
+    return this.shotList;
+  };
+
+  CameraOperator.prototype.setCommandChannel = function(commandChannel) {
+    this.commandChannel = commandChannel;
   };
 
   CameraOperator.prototype.getCameraStateData = function(newState, lastState) {
     var recordedState = this.shotList.getFrameData() || newState;
 
-    if (this.manualMode) {
+    if (this.commandChannel) {
       newState = this.getNewStateData(newState, lastState, recordedState);
     } else {
       newState = recordedState;

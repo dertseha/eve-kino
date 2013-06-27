@@ -6,17 +6,20 @@ The ApplicationController is the master controller for the app
 @module Client
 @class ApplicationController
 */
-define(["Defaults", "production/Resources", "controls/GamepadApi", "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/Track", "production/Reel"],
+define(["Defaults", "production/Resources", "controls/GamepadApi",
+    "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/ccp/res/SceneryArchetype",
+    "production/Track", "production/Reel"
+],
 
-function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track, Reel) {
+function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
   "use strict";
 
-  var addShip = function(modelView, url) {
-    var ship = {
-      url: url
-    };
+  var addShip = function(modelView, resourceUrl) {
+    var arch = new ShipArchetype();
 
-    modelView.ships.push(ship);
+    arch.setResourceUrl(resourceUrl);
+
+    modelView.props.push(arch);
   };
 
   var addPlanet = function(modelView, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
@@ -28,7 +31,15 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track,
     arch.setHeightMap1Url(heightMap1Url);
     arch.setHeightMap2Url(heightMap2Url);
 
-    modelView.planets.push(arch);
+    modelView.props.push(arch);
+  };
+
+  var addScenery = function(modelView, resourceUrl) {
+    var arch = new SceneryArchetype();
+
+    arch.setResourceUrl(resourceUrl);
+
+    modelView.props.push(arch);
   };
 
   var initModelView = function(modelView, controller, config) {
@@ -42,22 +53,19 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track,
     modelView.play = function() {
       controller.play();
     };
-
-    modelView.loadShip = function(ship) {
-      controller.testCreateShip(ship.url);
+    modelView.addProp = function(arch) {
+      controller.addProp(arch);
+    };
+    modelView.setFocusOnCamera = function() {
+      controller.setFocusOnCamera();
     };
 
-    modelView.loadPlanet = function(arch) {
-      controller.testCreatePlanet(arch);
-    };
-
-    modelView.ships = [];
+    modelView.props = [];
     addShip(modelView, "res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
     addShip(modelView, "res:/dx9/model/ship/gallente/Cruiser/GC3/CreoDron/GC3_T2_CreoDron.red");
     addShip(modelView, "res:/dx9/model/ship/amarr/at1/at1.red");
     addShip(modelView, "res:/dx9/model/ship/jove/capsule/capsule.red");
 
-    modelView.planets = [];
     addPlanet(modelView, 40000002,
       "res:/dx9/model/WorldObject/Planet/Template/Terrestrial/P_Terrestrial_61.red",
       undefined,
@@ -68,6 +76,10 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track,
       undefined,
       "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png",
       "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
+
+    addScenery(modelView, "res:/dx9/Model/station/gallente/gs2/gs2.red");
+    addScenery(modelView, "res:/dx9/model/jumpgate/amarr/abg.red");
+    addScenery(modelView, "res:/dx9/model/worldobject/asteroid/zuthrine/shards/zuthrine_shard01_unmined.red");
   };
 
   var ApplicationController = function(modelView, config, productionManager, mainScreen) {
@@ -87,66 +99,44 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track,
       modelView.status = "Set created";
       modelView.$apply();
     }, function(err) {
-      console.log("Init error: " + err);
       modelView.status = err;
       modelView.$apply();
     });
   };
 
-  ApplicationController.prototype.testCreatePlanet = function(arch) {
-    var planetPromise = this.set.getStage().enter(arch);
+  ApplicationController.prototype.placeObjectInFrontOfCamera = function(obj, distance) {
     var sceneCamera = this.set.getSceneCamera();
+    var stateData = obj.getStateData();
+    var cameraPos = sceneCamera.getPosition();
+    var offset = distance > 10.0 ? distance : 10.0;
 
-    planetPromise.then(function(planet) {
-      var stateData = planet.getStateData();
-      var cameraPos = sceneCamera.getPosition();
+    sceneCamera.rotateModelVectorByModelRotation(stateData.position, 0.0, 0.0, -offset);
+    stateData.position[0] += cameraPos[0] * -1;
+    stateData.position[1] += cameraPos[1] * -1;
+    stateData.position[2] += cameraPos[2] * -1;
+    obj.setStateData(stateData);
+  };
 
-      stateData.radius = 5000;
+  ApplicationController.prototype.addProp = function(arch) {
+    var that = this;
+    var propPromise = this.set.getStage().enter(arch);
 
-      sceneCamera.rotateModelVectorByModelRotation(stateData.position, 0.0, 0.0, -stateData.radius * 1.0);
-      stateData.position[0] += cameraPos[0] * -1;
-      stateData.position[1] += cameraPos[1] * -1;
-      stateData.position[2] += cameraPos[2] * -1;
-      planet.setStateData(stateData);
+    propPromise.then(function(prop) {
+      var radius = prop.getBoundingSphereRadius();
+
+      that.placeObjectInFrontOfCamera(prop, radius);
+
+      that.createScriptedAnimatorForProp(prop);
+      that.setFocusOnProp(prop);
     });
   };
 
-  ApplicationController.prototype.testCreateShip = function(resourceUrl) {
-    var shipArch = new ShipArchetype();
-    var that = this;
-    var sceneCamera = this.set.getSceneCamera();
+  ApplicationController.prototype.createScriptedAnimatorForProp = function(prop) {
+    var track = new Track([]);
+    var animator = this.stageManager.getAnimator(prop);
 
-    shipArch.setResourceUrl(resourceUrl);
-
-    var shipPromise = this.set.getStage().enter(shipArch);
-
-    this.animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
-
-    shipPromise.then(function(ship) {
-      var track = new Track([]);
-      var animator = that.stageManager.getAnimator(ship, track);
-      var stateData = ship.getStateData();
-      var radius = ship.getBoundingSphereRadius();
-      var cameraPos = sceneCamera.getPosition();
-
-      if (radius < 10.0) {
-        radius = 10.0;
-      }
-
-      sceneCamera.rotateModelVectorByModelRotation(stateData.position, 0.0, 0.0, -radius * 1.5);
-      stateData.position[0] += cameraPos[0] * -1;
-      stateData.position[1] += cameraPos[1] * -1;
-      stateData.position[2] += cameraPos[2] * -1;
-      ship.setStateData(stateData);
-
-      that.reel.addTrack(track);
-      if (that.selectedShipAnim) {
-        that.selectedShipAnim.setCommandChannel(null);
-      }
-      //animator.setCommandChannel(that.animCommands);
-      //that.selectedShipAnim = animator;
-    });
-    //ship.loadBoosters("res:/dx9/model/ship/booster/booster_amarr.red");
+    animator.setScript(track);
+    this.reel.addTrack(track);
   };
 
   ApplicationController.prototype.createDefaultBindings = function() {
@@ -187,12 +177,14 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track,
 
     this.director = new Resources.Director();
     this.reel = new Reel();
+    this.stopReelTransmission();
 
-    var camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
+    this.camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
 
     this.camera = new Resources.Camera(set.getSceneCamera());
-    this.cameraOperator = new Resources.CameraOperator(camCommands, new Track([]));
+    this.cameraOperator = new Resources.CameraOperator(new Track([]));
     this.camera.setOperator(this.cameraOperator);
+    this.setFocusOnCamera();
 
     this.stageManager = new Resources.StageManager(set.getStage());
 
@@ -200,42 +192,92 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Track,
 
     this.setupGamepadInput();
 
+    // TODO: The command channel must come from the prop archetype!
+    this.animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
+
     set.getSyncSource().setCallback(function() {
       // TODO: move this to some general time keeper
 
       that.stageManager.updateStage();
       that.camera.updateFrame();
 
-      that.reel.nextFrame();
+      that.reelTransmission.update();
     });
 
   };
 
-  ApplicationController.prototype.record = function() {
-    this.reel.skipTo(0);
-    //this.cameraOperator.setManualMode(true);
+  ApplicationController.prototype.clearFocus = function() {
+    if (this.focusTarget) {
+      this.focusTarget.setCommandChannel(null);
+      this.focusTarget = null;
+      this.focusTrack.setRecording(false);
+      this.focusTrack = null;
+      this.focusCommandChannel = null;
+    }
+  };
 
-    var track = this.selectedShipAnim.getScript();
-    this.selectedShipAnim.setCommandChannel(this.animCommands);
-    track.setRecording(true);
+  ApplicationController.prototype.setFocusOnCamera = function() {
+    this.clearFocus();
+    this.focusTarget = this.cameraOperator;
+    this.focusTrack = this.cameraOperator.getShotList();
+    this.focusCommandChannel = this.camCommands;
+
+    this.focusTarget.setCommandChannel(this.focusCommandChannel);
+  };
+
+  ApplicationController.prototype.setFocusOnProp = function(prop) {
+    this.clearFocus();
+    this.focusTarget = this.stageManager.getAnimator(prop);
+    this.focusTrack = this.focusTarget.getScript();
+    this.focusCommandChannel = this.animCommands;
+
+    this.focusTarget.setCommandChannel(this.focusCommandChannel);
+  };
+
+  ApplicationController.prototype.record = function() {
+    this.startReelTransmission();
+    this.reel.skipTo(0);
+
+    if (this.focusTarget) {
+      this.focusTarget.setCommandChannel(this.focusCommandChannel);
+      this.focusTrack.setRecording(true);
+    }
   };
 
   ApplicationController.prototype.stop = function() {
+    this.stopReelTransmission();
     this.reel.skipTo(0);
-    //this.cameraOperator.setManualMode(true);
 
-    var track = this.selectedShipAnim.getScript();
-    this.selectedShipAnim.setCommandChannel(null);
-    track.setRecording(false);
+    if (this.focusTarget) {
+      this.focusTarget.setCommandChannel(null);
+      this.focusTrack.setRecording(false);
+    }
   };
 
   ApplicationController.prototype.play = function() {
+    this.startReelTransmission();
     this.reel.skipTo(0);
-    //this.cameraOperator.setManualMode(false);
 
-    var track = this.selectedShipAnim.getScript();
-    this.selectedShipAnim.setCommandChannel(null);
-    track.setRecording(false);
+    if (this.focusTarget) {
+      this.focusTarget.setCommandChannel(null);
+      this.focusTrack.setRecording(false);
+    }
+  };
+
+  ApplicationController.prototype.startReelTransmission = function() {
+    var reel = this.reel;
+
+    this.reelTransmission = {
+      update: function() {
+        reel.nextFrame();
+      }
+    };
+  };
+
+  ApplicationController.prototype.stopReelTransmission = function() {
+    this.reelTransmission = {
+      update: function() {}
+    };
   };
 
   /**
