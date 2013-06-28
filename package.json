@@ -14,6 +14,10 @@
   ],
   "homepage": "https://github.com/dertseha/eve-kino",
   "bugs": "https://github.com/dertseha/eve-kino/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dertseha/eve-kino.git"
+  },
   "dependencies": {
     "express": "3.2.x",
     "jade": "*",
