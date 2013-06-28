@@ -2,6 +2,16 @@
 
 eve-kino is a web application to generate short movies using the art assets of EVE Online.
 
+Using the WebGL library from CCP, ccpwgl, this project provides a browser application to create spaceship animations.
+The production mirrors the recording of film; Instead of modifying orientation/position parameters by hand per frame, the actors (ships, ...)
+are recorded from the user input in real-time one by one, while the others replay their previously recorded script.
+
+Primary input control is the gamepad (joystick) using the Gamepad-API from browsers.
+
+Supported browsers are:
+* Chrome (Webkit, standard)
+* Firefox (Nightly builds because of experimental support of Gamepad-API)
+
 ## Client Dependencies
 * require.js 2.1.5
 * Angular.js 1.0.6
