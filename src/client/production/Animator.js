@@ -79,7 +79,7 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
 
     tempVec3[0] = right * helper.MODEL_DIRECTION_RIGHT;
     tempVec3[1] = up * helper.MODEL_DIRECTION_UP;
-    tempVec3[2] = forward * helper.MODEL_DIRECTION_FORWARD;
+    tempVec3[2] = forward * helper.MODEL_DIRECTION_FORWARD * 6.6; // ~200 m/s at 60fps
     glMatrix.quat4.multiplyVec3(newState.rotation, tempVec3);
     newState.position[0] += tempVec3[0];
     newState.position[1] += tempVec3[1];

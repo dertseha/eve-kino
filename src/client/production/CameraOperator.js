@@ -111,6 +111,7 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
   CameraOperator.prototype.updateByChase = function(newState, lastState) {
     var chaseData = this.chaseObject.getStateData();
     var radius = this.chaseObject.getBoundingSphereRadius();
+    var backDistance = -10 - radius * 2.0;
 
     glMatrix.vec3.negate(chaseData.position, newState.position);
 
@@ -118,7 +119,7 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
     glMatrix.quat4.inverse(newState.rotation);
     rotateViewOrientation(newState.rotation, 0, helper.degreeToRad(-1.0) * helper.VIEW_ROTATION_PITCH_UP, Math.PI);
 
-    glMatrix.vec3.set([0, -radius * 0.5, -radius * 2.0], newState.viewOffset);
+    glMatrix.vec3.set([0, -radius * 0.5, backDistance], newState.viewOffset);
 
     return newState;
   };
@@ -136,7 +137,7 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
 
     tempVec3[0] = right * helper.VIEW_DIRECTION_RIGHT;
     tempVec3[1] = up * helper.VIEW_DIRECTION_UP;
-    tempVec3[2] = forward * helper.VIEW_DIRECTION_FORWARD;
+    tempVec3[2] = forward * helper.VIEW_DIRECTION_FORWARD * 6.6; // ~200 m/s at 60fps
     rotateModelVectorByViewRotation(newState.rotation, tempVec3);
     newState.position[0] += tempVec3[0];
     newState.position[1] += tempVec3[1];
