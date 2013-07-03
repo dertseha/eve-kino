@@ -47,7 +47,7 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     modelView.record = function() {
       controller.record();
     };
-    modelView.pause = function() {
+    modelView.stop = function() {
       controller.stop();
     };
     modelView.play = function() {
@@ -59,8 +59,14 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     modelView.setFocusOnCamera = function() {
       controller.setFocusOnCamera();
     };
+    modelView.setFocusOnProp = function(prop) {
+      controller.setFocusOnProp(prop);
+    };
+
+    modelView.stageProps = [];
 
     modelView.props = [];
+
     addShip(modelView, "res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
     addShip(modelView, "res:/dx9/model/ship/gallente/Cruiser/GC3/CreoDron/GC3_T2_CreoDron.red");
     addShip(modelView, "res:/dx9/model/ship/amarr/at1/at1.red");
@@ -86,6 +92,7 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     var that = this;
 
     this.productionManager = productionManager;
+    this.modelView = modelView;
 
     initModelView(modelView, this, config);
 
@@ -112,11 +119,12 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
       var radius = prop.getBoundingSphereRadius();
 
       that.cameraOperator.placeObjectInFrontOfCamera(prop, radius);
-
       that.createScriptedAnimatorForProp(prop);
-      that.setFocusOnProp(prop);
 
-      that.cameraOperator.setChaseObject(prop);
+      that.modelView.stageProps.push(prop);
+      that.modelView.$apply();
+
+      that.setFocusOnProp(prop);
     });
   };
 
@@ -202,6 +210,9 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
       this.focusTrack.setRecording(false);
       this.focusTrack = null;
       this.focusCommandChannel = null;
+
+      this.modelView.selectedFocus = null;
+      this.modelView.$apply();
     }
   };
 
@@ -221,7 +232,11 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     this.focusTrack = this.focusTarget.getScript();
     this.focusCommandChannel = this.animCommands;
 
+    this.cameraOperator.setChaseObject(prop);
     this.focusTarget.setCommandChannel(this.focusCommandChannel);
+
+    this.modelView.selectedFocus = prop;
+    this.modelView.$apply();
   };
 
   ApplicationController.prototype.record = function() {
@@ -239,7 +254,7 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     this.reel.skipTo(0);
 
     if (this.focusTarget) {
-      this.focusTarget.setCommandChannel(null);
+      this.focusTarget.setCommandChannel(this.focusCommandChannel);
       this.focusTrack.setRecording(false);
     }
   };

@@ -11,9 +11,9 @@ define(["production/ccp/res/Scenery"], function(Scenery) {
     this.resourceUrl = "";
   };
 
-  SceneryArchetype.prototype.request = function(ccpwgl, scene, deferred) {
+  SceneryArchetype.prototype.request = function(ccpwgl, scene, deferred, id) {
     return scene.loadObject(this.resourceUrl, function() {
-      deferred.resolve(new Scenery(ccpwgl, this));
+      deferred.resolve(new Scenery(ccpwgl, this, id));
     });
   };
 

@@ -68,10 +68,22 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
 
   CameraOperator.prototype.setCommandChannel = function(commandChannel) {
     this.commandChannel = commandChannel;
+    this.resetToShotList();
   };
 
   CameraOperator.prototype.setChaseObject = function(object) {
     this.chaseObject = object;
+    if (!this.chaseObject) {
+      this.resetToShotList();
+    }
+  };
+
+  CameraOperator.prototype.resetToShotList = function() {
+    var camera = this.camera;
+    var lastState = camera.getStateData(this.lastState);
+    var resetState = this.shotList.getFrameData() || lastState;
+
+    camera.setStateData(resetState);
   };
 
   CameraOperator.prototype.placeObjectInFrontOfCamera = function(object, distance) {

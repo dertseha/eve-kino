@@ -7,14 +7,19 @@ The planet wrapper
 define(["lib/gl-matrix"], function(glMatrix) {
   "use strict";
 
-  var Planet = function(obj) {
+  var Planet = function(obj, id) {
     this.obj = obj;
+    this.id = id;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();
     this.transform = glMatrix.mat4.identity();
 
     this.radius = 60 * 1000;
+  };
+
+  Planet.prototype.toString = function() {
+    return "Planet " + this.id;
   };
 
   Planet.prototype.getBoundingSphereRadius = function() {

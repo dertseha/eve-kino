@@ -156,6 +156,14 @@ define('production/Animator',["lib/gl-matrix", "util/GlHelper"], function(glMatr
 
   Animator.prototype.setCommandChannel = function(commandChannel) {
     this.commandChannel = commandChannel;
+    this.resetToScript();
+  };
+
+  Animator.prototype.resetToScript = function() {
+    var lastState = this.prop.getStateData(this.lastState);
+    var resetState = this.script.getFrameData() || lastState;
+
+    this.prop.setStateData(resetState);
   };
 
   Animator.prototype.update = function() {
@@ -472,10 +480,22 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
 
   CameraOperator.prototype.setCommandChannel = function(commandChannel) {
     this.commandChannel = commandChannel;
+    this.resetToShotList();
   };
 
   CameraOperator.prototype.setChaseObject = function(object) {
     this.chaseObject = object;
+    if (!this.chaseObject) {
+      this.resetToShotList();
+    }
+  };
+
+  CameraOperator.prototype.resetToShotList = function() {
+    var camera = this.camera;
+    var lastState = camera.getStateData(this.lastState);
+    var resetState = this.shotList.getFrameData() || lastState;
+
+    camera.setStateData(resetState);
   };
 
   CameraOperator.prototype.placeObjectInFrontOfCamera = function(object, distance) {
@@ -711,13 +731,18 @@ The ship wrapper
 define('production/ccp/res/Ship',["lib/gl-matrix"], function(glMatrix) {
   
 
-  var Ship = function(ccpwgl, obj) {
+  var Ship = function(ccpwgl, obj, id) {
     this.ccpwgl = ccpwgl;
     this.obj = obj;
+    this.id = id;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();
     this.transform = glMatrix.mat4.identity();
+  };
+
+  Ship.prototype.toString = function() {
+    return "Ship " + this.id;
   };
 
   Ship.prototype.getBoundingSphereRadius = function() {
@@ -756,9 +781,9 @@ define('production/ccp/res/ShipArchetype',["production/ccp/res/Ship"], function(
     this.resourceUrl = "";
   };
 
-  ShipArchetype.prototype.request = function(ccpwgl, scene, deferred) {
+  ShipArchetype.prototype.request = function(ccpwgl, scene, deferred, id) {
     return scene.loadShip(this.resourceUrl, function() {
-      deferred.resolve(new Ship(ccpwgl, this));
+      deferred.resolve(new Ship(ccpwgl, this, id));
     });
   };
 
@@ -779,14 +804,19 @@ The planet wrapper
 define('production/ccp/res/Planet',["lib/gl-matrix"], function(glMatrix) {
   
 
-  var Planet = function(obj) {
+  var Planet = function(obj, id) {
     this.obj = obj;
+    this.id = id;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();
     this.transform = glMatrix.mat4.identity();
 
     this.radius = 60 * 1000;
+  };
+
+  Planet.prototype.toString = function() {
+    return "Planet " + this.id;
   };
 
   Planet.prototype.getBoundingSphereRadius = function() {
@@ -834,10 +864,10 @@ define('production/ccp/res/PlanetArchetype',["production/ccp/res/Planet"], funct
     this.heightMap2Url = null;
   };
 
-  PlanetArchetype.prototype.request = function(ccpwgl, scene, deferred) {
+  PlanetArchetype.prototype.request = function(ccpwgl, scene, deferred, id) {
     var obj = scene.loadPlanet(this.itemId, this.resourceUrl, this.atmosphereUrl, this.heightMap1Url, this.heightMap2Url);
 
-    deferred.resolve(new Planet(obj));
+    deferred.resolve(new Planet(obj, id));
   };
 
   PlanetArchetype.prototype.setItemId = function(value) {
@@ -881,13 +911,18 @@ The Scenery wrapper
 define('production/ccp/res/Scenery',["lib/gl-matrix"], function(glMatrix) {
   
 
-  var Scenery = function(ccpwgl, obj) {
+  var Scenery = function(ccpwgl, obj, id) {
     this.ccpwgl = ccpwgl;
     this.obj = obj;
+    this.id = id;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();
     this.transform = glMatrix.mat4.identity();
+  };
+
+  Scenery.prototype.toString = function() {
+    return "Scenery " + this.id;
   };
 
   Scenery.prototype.getBoundingSphereRadius = function() {
@@ -926,9 +961,9 @@ define('production/ccp/res/SceneryArchetype',["production/ccp/res/Scenery"], fun
     this.resourceUrl = "";
   };
 
-  SceneryArchetype.prototype.request = function(ccpwgl, scene, deferred) {
+  SceneryArchetype.prototype.request = function(ccpwgl, scene, deferred, id) {
     return scene.loadObject(this.resourceUrl, function() {
-      deferred.resolve(new Scenery(ccpwgl, this));
+      deferred.resolve(new Scenery(ccpwgl, this, id));
     });
   };
 
@@ -1102,7 +1137,7 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     modelView.record = function() {
       controller.record();
     };
-    modelView.pause = function() {
+    modelView.stop = function() {
       controller.stop();
     };
     modelView.play = function() {
@@ -1114,8 +1149,14 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     modelView.setFocusOnCamera = function() {
       controller.setFocusOnCamera();
     };
+    modelView.setFocusOnProp = function(prop) {
+      controller.setFocusOnProp(prop);
+    };
+
+    modelView.stageProps = [];
 
     modelView.props = [];
+
     addShip(modelView, "res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
     addShip(modelView, "res:/dx9/model/ship/gallente/Cruiser/GC3/CreoDron/GC3_T2_CreoDron.red");
     addShip(modelView, "res:/dx9/model/ship/amarr/at1/at1.red");
@@ -1141,6 +1182,7 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     var that = this;
 
     this.productionManager = productionManager;
+    this.modelView = modelView;
 
     initModelView(modelView, this, config);
 
@@ -1167,11 +1209,12 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
       var radius = prop.getBoundingSphereRadius();
 
       that.cameraOperator.placeObjectInFrontOfCamera(prop, radius);
-
       that.createScriptedAnimatorForProp(prop);
-      that.setFocusOnProp(prop);
 
-      that.cameraOperator.setChaseObject(prop);
+      that.modelView.stageProps.push(prop);
+      that.modelView.$apply();
+
+      that.setFocusOnProp(prop);
     });
   };
 
@@ -1257,6 +1300,9 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
       this.focusTrack.setRecording(false);
       this.focusTrack = null;
       this.focusCommandChannel = null;
+
+      this.modelView.selectedFocus = null;
+      this.modelView.$apply();
     }
   };
 
@@ -1276,7 +1322,11 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     this.focusTrack = this.focusTarget.getScript();
     this.focusCommandChannel = this.animCommands;
 
+    this.cameraOperator.setChaseObject(prop);
     this.focusTarget.setCommandChannel(this.focusCommandChannel);
+
+    this.modelView.selectedFocus = prop;
+    this.modelView.$apply();
   };
 
   ApplicationController.prototype.record = function() {
@@ -1294,7 +1344,7 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     this.reel.skipTo(0);
 
     if (this.focusTarget) {
-      this.focusTarget.setCommandChannel(null);
+      this.focusTarget.setCommandChannel(this.focusCommandChannel);
       this.focusTrack.setRecording(false);
     }
   };
@@ -1422,14 +1472,30 @@ define('production/ccp/Stage',["lib/q"], function(q) {
   var Stage = function(ccpwgl, scene) {
     this.ccpwgl = ccpwgl;
     this.scene = scene;
+
+    this.propCounter = 1;
+    this.props = [];
   };
 
+  /**
+   * @method enter
+   * @param {Object} archetype the archetype to request
+   * @return {Promise} for the creation
+   */
   Stage.prototype.enter = function(archetype) {
     var deferred = q.defer();
+    var that = this;
 
-    archetype.request(this.ccpwgl, this.scene, deferred);
+    archetype.request(this.ccpwgl, this.scene, deferred, this.propCounter++);
+    deferred.promise.then(function(prop) {
+      that.props.push(prop);
+    });
 
     return deferred.promise;
+  };
+
+  Stage.prototype.getProps = function() {
+    return this.props;
   };
 
   return Stage;

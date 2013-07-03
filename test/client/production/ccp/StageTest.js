@@ -36,6 +36,30 @@ define(["lib/ccpwgl", "production/ccp/Stage"], function(ccpwgl, Stage) {
         assert(true);
         done();
       });
+    },
+
+    "should have no props when created": function() {
+      var result = this.stage.getProps();
+
+      assert.equals(result, []);
+    },
+
+    "should report the prop after being created": function(done) {
+      var prop = {};
+      var archetype = {
+        request: function(ccpwgl, scene, deferred) {
+          deferred.resolve(prop);
+        }
+      };
+      var promise = this.stage.enter(archetype);
+      var that = this;
+
+      promise.then(function() {
+        var result = that.stage.getProps();
+
+        assert.equals(result, [prop]);
+        done();
+      });
     }
   });
 });

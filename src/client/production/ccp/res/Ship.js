@@ -7,13 +7,18 @@ The ship wrapper
 define(["lib/gl-matrix"], function(glMatrix) {
   "use strict";
 
-  var Ship = function(ccpwgl, obj) {
+  var Ship = function(ccpwgl, obj, id) {
     this.ccpwgl = ccpwgl;
     this.obj = obj;
+    this.id = id;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();
     this.transform = glMatrix.mat4.identity();
+  };
+
+  Ship.prototype.toString = function() {
+    return "Ship " + this.id;
   };
 
   Ship.prototype.getBoundingSphereRadius = function() {

@@ -11,9 +11,9 @@ define(["production/ccp/res/Ship"], function(Ship) {
     this.resourceUrl = "";
   };
 
-  ShipArchetype.prototype.request = function(ccpwgl, scene, deferred) {
+  ShipArchetype.prototype.request = function(ccpwgl, scene, deferred, id) {
     return scene.loadShip(this.resourceUrl, function() {
-      deferred.resolve(new Ship(ccpwgl, this));
+      deferred.resolve(new Ship(ccpwgl, this, id));
     });
   };
 

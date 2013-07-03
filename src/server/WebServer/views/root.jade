@@ -7,10 +7,11 @@ block content
       canvas(id="mainScreen")
     div(id="controls")
       button(ng-click="record()") Record 
-      button(ng-click="pause()") Pause
+      button(ng-click="stop()") Stop
       button(ng-click="play()") Play
     div(id="focusSelection")
       button(ng-click="setFocusOnCamera()") Focus Camera
+      select(ng-model="selectedFocus", ng-options="prop as prop.toString() for prop in stageProps", ng-change="setFocusOnProp(selectedFocus)", size="5")
     div(id="propCreation")
       select(ng-model="selectedProp", ng-options="prop as prop.resourceUrl for prop in props", size="5")
       button(ng-click="addProp(selectedProp)") Add Prop

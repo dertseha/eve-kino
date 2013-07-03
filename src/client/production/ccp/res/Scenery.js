@@ -7,13 +7,18 @@ The Scenery wrapper
 define(["lib/gl-matrix"], function(glMatrix) {
   "use strict";
 
-  var Scenery = function(ccpwgl, obj) {
+  var Scenery = function(ccpwgl, obj, id) {
     this.ccpwgl = ccpwgl;
     this.obj = obj;
+    this.id = id;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();
     this.transform = glMatrix.mat4.identity();
+  };
+
+  Scenery.prototype.toString = function() {
+    return "Scenery " + this.id;
   };
 
   Scenery.prototype.getBoundingSphereRadius = function() {
