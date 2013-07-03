@@ -22,7 +22,7 @@ nconf.file(path.normalize(configFileBase + "/server-config.json"));
 
 nconf.defaults({
   "http": {
-    port: 3000,
+    port: process.env.PORT || 3000,
     cookieSecret: "",
     sessionSecret: null
   }
