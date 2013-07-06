@@ -6,12 +6,12 @@ The ApplicationController is the master controller for the app
 @module Client
 @class ApplicationController
 */
-define(["Defaults", "production/Resources", "controls/GamepadApi",
+define(["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
     "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/ccp/res/SceneryArchetype",
     "production/Track", "production/Reel"
 ],
 
-function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
+function(defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
   "use strict";
 
   var addShip = function(modelView, resourceUrl) {
@@ -88,27 +88,67 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     addScenery(modelView, "res:/dx9/model/worldobject/asteroid/zuthrine/shards/zuthrine_shard01_unmined.red");
   };
 
-  var ApplicationController = function(modelView, config, productionManager, mainScreen) {
+  var ApplicationController = function(modelView, dialogFactory, config, productionManager, mainScreen) {
     var that = this;
 
     this.productionManager = productionManager;
     this.modelView = modelView;
+    this.dialogFactory = dialogFactory;
 
     initModelView(modelView, this, config);
 
     productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
 
-    var promisedSet = productionManager.createSet(mainScreen, "res:/dx9/scene/universe/a01_cube.red");
-    //var promisedSet = productionManager.createChromaKeyedSet(mainScreen, [0.0, 1.0, 0.0, 1.0]);
+    var createDialogListener = {
+      createSpaceSet: function(background) {
+        return productionManager.createSet(mainScreen, background.resourceUrl);
+      },
+      createChromaKeyedSet: function(color) {
+        return productionManager.createChromaKeyedSet(mainScreen, color);
+      }
+    };
 
-    promisedSet.then(function(set) {
+    var dialogParams = {
+      backgrounds: [{
+          resourceUrl: "res:/dx9/scene/universe/a01_cube.red"
+        }
+      ]
+    };
+    var dialogTemplate = uiDialogs.createSessionDialog.getBuilder(this.dialogFactory, dialogParams);
+    var loadingDialog = null;
+
+    dialogTemplate.open().then(function(result) {
+      loadingDialog = that.showSplash("Creating set...", "Please wait.");
+
+      return result(createDialogListener);
+    }).then(function(set) {
+      loadingDialog.close();
+      loadingDialog = null;
       that.onSetCreated(set);
       modelView.status = "Set created";
       modelView.$apply();
     }, function(err) {
-      modelView.status = err;
-      modelView.$apply();
+      var reason = (err && (err.message || err)) || "Unknown reason. That's bad.";
+
+      loadingDialog.close();
+      loadingDialog = null;
+      that.showSplash("Failed to create a set. Try Reloading.", reason);
     });
+  };
+
+  ApplicationController.prototype.showSplash = function(title, message) {
+    var params = {
+      title: title,
+      message: message
+    };
+    var dialog = uiDialogs.splashDialog.getBuilder(this.dialogFactory, params);
+    var result = dialog.open();
+
+    if (!this.modelView.$$phase) {
+      this.modelView.$apply();
+    }
+
+    return dialog;
   };
 
   ApplicationController.prototype.addProp = function(arch) {
@@ -293,8 +333,8 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     @return {Function} Controller function
   */
   var create = function(config, productionManager, mainScreen) {
-    return function($scope) {
-      return new ApplicationController($scope, config, productionManager, mainScreen);
+    return function($scope, $dialog) {
+      return new ApplicationController($scope, $dialog, config, productionManager, mainScreen);
     };
   };
 

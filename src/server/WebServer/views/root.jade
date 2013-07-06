@@ -27,13 +27,16 @@ block content
     require.config({
       baseUrl: "/javascripts/!{build}",
       paths: {
+        "lib/text": "empty:",
         "angular": "lib/angular",
+        "ui-bootstrap": "lib/ui-bootstrap-tpls",
         "ClientApp": "client/ClientApp"
       },
       shim: {
         "angular": {
           exports: "angular"
         },
+        "ui-bootstrap": ["angular"],
         "lib/ccpwgl": {
           exports: "ccpwgl"
         },
@@ -45,7 +48,7 @@ block content
         "ClientApp": !{clientConfig}
       }
     });
-    require(["angular", "ClientApp"], function(angular, app) {
+    require(["angular", "ui-bootstrap", "ClientApp"], function(angular, uiBootstrap, app) {
       var mainScreen = document.getElementById("mainScreen");
       var appModuleNames = app(mainScreen);
 

@@ -10,7 +10,7 @@ module.exports = function(grunt) {
       options: {
         jshintrc: "./.jshintrc"
       },
-      all: ["Gruntfile.js", "src/client/**/*.js", "src/server/**/*.js", "test/**/*.js"]
+      all: ["Gruntfile.js", "src/client/**/*.js", "!src/client/lib/**/*.js", "src/server/**/*.js", "test/**/*.js"]
     },
 
     // Run Plato (static analysis) on server and client sources

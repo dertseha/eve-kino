@@ -32,6 +32,584 @@ define('Defaults',[], function() {
   return defaults;
 });
 /**
+ * @license RequireJS text 2.0.7 Copyright (c) 2010-2012, The Dojo Foundation All Rights Reserved.
+ * Available via the MIT or new BSD license.
+ * see: http://github.com/requirejs/text for details
+ */
+/*jslint regexp: true */
+/*global require, XMLHttpRequest, ActiveXObject,
+  define, window, process, Packages,
+  java, location, Components, FileUtils */
+
+define('lib/text',['module'], function (module) {
+    
+
+    var text, fs, Cc, Ci,
+        progIds = ['Msxml2.XMLHTTP', 'Microsoft.XMLHTTP', 'Msxml2.XMLHTTP.4.0'],
+        xmlRegExp = /^\s*<\?xml(\s)+version=[\'\"](\d)*.(\d)*[\'\"](\s)*\?>/im,
+        bodyRegExp = /<body[^>]*>\s*([\s\S]+)\s*<\/body>/im,
+        hasLocation = typeof location !== 'undefined' && location.href,
+        defaultProtocol = hasLocation && location.protocol && location.protocol.replace(/\:/, ''),
+        defaultHostName = hasLocation && location.hostname,
+        defaultPort = hasLocation && (location.port || undefined),
+        buildMap = {},
+        masterConfig = (module.config && module.config()) || {};
+
+    text = {
+        version: '2.0.7',
+
+        strip: function (content) {
+            //Strips <?xml ...?> declarations so that external SVG and XML
+            //documents can be added to a document without worry. Also, if the string
+            //is an HTML document, only the part inside the body tag is returned.
+            if (content) {
+                content = content.replace(xmlRegExp, "");
+                var matches = content.match(bodyRegExp);
+                if (matches) {
+                    content = matches[1];
+                }
+            } else {
+                content = "";
+            }
+            return content;
+        },
+
+        jsEscape: function (content) {
+            return content.replace(/(['\\])/g, '\\$1')
+                .replace(/[\f]/g, "\\f")
+                .replace(/[\b]/g, "\\b")
+                .replace(/[\n]/g, "\\n")
+                .replace(/[\t]/g, "\\t")
+                .replace(/[\r]/g, "\\r")
+                .replace(/[\u2028]/g, "\\u2028")
+                .replace(/[\u2029]/g, "\\u2029");
+        },
+
+        createXhr: masterConfig.createXhr || function () {
+            //Would love to dump the ActiveX crap in here. Need IE 6 to die first.
+            var xhr, i, progId;
+            if (typeof XMLHttpRequest !== "undefined") {
+                return new XMLHttpRequest();
+            } else if (typeof ActiveXObject !== "undefined") {
+                for (i = 0; i < 3; i += 1) {
+                    progId = progIds[i];
+                    try {
+                        xhr = new ActiveXObject(progId);
+                    } catch (e) {}
+
+                    if (xhr) {
+                        progIds = [progId];  // so faster next time
+                        break;
+                    }
+                }
+            }
+
+            return xhr;
+        },
+
+        /**
+         * Parses a resource name into its component parts. Resource names
+         * look like: module/name.ext!strip, where the !strip part is
+         * optional.
+         * @param {String} name the resource name
+         * @returns {Object} with properties "moduleName", "ext" and "strip"
+         * where strip is a boolean.
+         */
+        parseName: function (name) {
+            var modName, ext, temp,
+                strip = false,
+                index = name.indexOf("."),
+                isRelative = name.indexOf('./') === 0 ||
+                             name.indexOf('../') === 0;
+
+            if (index !== -1 && (!isRelative || index > 1)) {
+                modName = name.substring(0, index);
+                ext = name.substring(index + 1, name.length);
+            } else {
+                modName = name;
+            }
+
+            temp = ext || modName;
+            index = temp.indexOf("!");
+            if (index !== -1) {
+                //Pull off the strip arg.
+                strip = temp.substring(index + 1) === "strip";
+                temp = temp.substring(0, index);
+                if (ext) {
+                    ext = temp;
+                } else {
+                    modName = temp;
+                }
+            }
+
+            return {
+                moduleName: modName,
+                ext: ext,
+                strip: strip
+            };
+        },
+
+        xdRegExp: /^((\w+)\:)?\/\/([^\/\\]+)/,
+
+        /**
+         * Is an URL on another domain. Only works for browser use, returns
+         * false in non-browser environments. Only used to know if an
+         * optimized .js version of a text resource should be loaded
+         * instead.
+         * @param {String} url
+         * @returns Boolean
+         */
+        useXhr: function (url, protocol, hostname, port) {
+            var uProtocol, uHostName, uPort,
+                match = text.xdRegExp.exec(url);
+            if (!match) {
+                return true;
+            }
+            uProtocol = match[2];
+            uHostName = match[3];
+
+            uHostName = uHostName.split(':');
+            uPort = uHostName[1];
+            uHostName = uHostName[0];
+
+            return (!uProtocol || uProtocol === protocol) &&
+                   (!uHostName || uHostName.toLowerCase() === hostname.toLowerCase()) &&
+                   ((!uPort && !uHostName) || uPort === port);
+        },
+
+        finishLoad: function (name, strip, content, onLoad) {
+            content = strip ? text.strip(content) : content;
+            if (masterConfig.isBuild) {
+                buildMap[name] = content;
+            }
+            onLoad(content);
+        },
+
+        load: function (name, req, onLoad, config) {
+            //Name has format: some.module.filext!strip
+            //The strip part is optional.
+            //if strip is present, then that means only get the string contents
+            //inside a body tag in an HTML string. For XML/SVG content it means
+            //removing the <?xml ...?> declarations so the content can be inserted
+            //into the current doc without problems.
+
+            // Do not bother with the work if a build and text will
+            // not be inlined.
+            if (config.isBuild && !config.inlineText) {
+                onLoad();
+                return;
+            }
+
+            masterConfig.isBuild = config.isBuild;
+
+            var parsed = text.parseName(name),
+                nonStripName = parsed.moduleName +
+                    (parsed.ext ? '.' + parsed.ext : ''),
+                url = req.toUrl(nonStripName),
+                useXhr = (masterConfig.useXhr) ||
+                         text.useXhr;
+
+            //Load the text. Use XHR if possible and in a browser.
+            if (!hasLocation || useXhr(url, defaultProtocol, defaultHostName, defaultPort)) {
+                text.get(url, function (content) {
+                    text.finishLoad(name, parsed.strip, content, onLoad);
+                }, function (err) {
+                    if (onLoad.error) {
+                        onLoad.error(err);
+                    }
+                });
+            } else {
+                //Need to fetch the resource across domains. Assume
+                //the resource has been optimized into a JS module. Fetch
+                //by the module name + extension, but do not include the
+                //!strip part to avoid file system issues.
+                req([nonStripName], function (content) {
+                    text.finishLoad(parsed.moduleName + '.' + parsed.ext,
+                                    parsed.strip, content, onLoad);
+                });
+            }
+        },
+
+        write: function (pluginName, moduleName, write, config) {
+            if (buildMap.hasOwnProperty(moduleName)) {
+                var content = text.jsEscape(buildMap[moduleName]);
+                write.asModule(pluginName + "!" + moduleName,
+                               "define(function () { return '" +
+                                   content +
+                               "';});\n");
+            }
+        },
+
+        writeFile: function (pluginName, moduleName, req, write, config) {
+            var parsed = text.parseName(moduleName),
+                extPart = parsed.ext ? '.' + parsed.ext : '',
+                nonStripName = parsed.moduleName + extPart,
+                //Use a '.js' file name so that it indicates it is a
+                //script that can be loaded across domains.
+                fileName = req.toUrl(parsed.moduleName + extPart) + '.js';
+
+            //Leverage own load() method to load plugin value, but only
+            //write out values that do not have the strip argument,
+            //to avoid any potential issues with ! in file names.
+            text.load(nonStripName, req, function (value) {
+                //Use own write() method to construct full module value.
+                //But need to create shell that translates writeFile's
+                //write() to the right interface.
+                var textWrite = function (contents) {
+                    return write(fileName, contents);
+                };
+                textWrite.asModule = function (moduleName, contents) {
+                    return write.asModule(moduleName, fileName, contents);
+                };
+
+                text.write(pluginName, nonStripName, textWrite, config);
+            }, config);
+        }
+    };
+
+    if (masterConfig.env === 'node' || (!masterConfig.env &&
+            typeof process !== "undefined" &&
+            process.versions &&
+            !!process.versions.node)) {
+        //Using special require.nodeRequire, something added by r.js.
+        fs = require.nodeRequire('fs');
+
+        text.get = function (url, callback, errback) {
+            try {
+                var file = fs.readFileSync(url, 'utf8');
+                //Remove BOM (Byte Mark Order) from utf8 files if it is there.
+                if (file.indexOf('\uFEFF') === 0) {
+                    file = file.substring(1);
+                }
+                callback(file);
+            } catch (e) {
+                errback(e);
+            }
+        };
+    } else if (masterConfig.env === 'xhr' || (!masterConfig.env &&
+            text.createXhr())) {
+        text.get = function (url, callback, errback, headers) {
+            var xhr = text.createXhr(), header;
+            xhr.open('GET', url, true);
+
+            //Allow plugins direct access to xhr headers
+            if (headers) {
+                for (header in headers) {
+                    if (headers.hasOwnProperty(header)) {
+                        xhr.setRequestHeader(header.toLowerCase(), headers[header]);
+                    }
+                }
+            }
+
+            //Allow overrides specified in config
+            if (masterConfig.onXhr) {
+                masterConfig.onXhr(xhr, url);
+            }
+
+            xhr.onreadystatechange = function (evt) {
+                var status, err;
+                //Do not explicitly handle errors, those should be
+                //visible via console output in the browser.
+                if (xhr.readyState === 4) {
+                    status = xhr.status;
+                    if (status > 399 && status < 600) {
+                        //An http 4xx or 5xx error. Signal an error.
+                        err = new Error(url + ' HTTP status: ' + status);
+                        err.xhr = xhr;
+                        errback(err);
+                    } else {
+                        callback(xhr.responseText);
+                    }
+
+                    if (masterConfig.onXhrComplete) {
+                        masterConfig.onXhrComplete(xhr, url);
+                    }
+                }
+            };
+            xhr.send(null);
+        };
+    } else if (masterConfig.env === 'rhino' || (!masterConfig.env &&
+            typeof Packages !== 'undefined' && typeof java !== 'undefined')) {
+        //Why Java, why is this so awkward?
+        text.get = function (url, callback) {
+            var stringBuffer, line,
+                encoding = "utf-8",
+                file = new java.io.File(url),
+                lineSeparator = java.lang.System.getProperty("line.separator"),
+                input = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(file), encoding)),
+                content = '';
+            try {
+                stringBuffer = new java.lang.StringBuffer();
+                line = input.readLine();
+
+                // Byte Order Mark (BOM) - The Unicode Standard, version 3.0, page 324
+                // http://www.unicode.org/faq/utf_bom.html
+
+                // Note that when we use utf-8, the BOM should appear as "EF BB BF", but it doesn't due to this bug in the JDK:
+                // http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4508058
+                if (line && line.length() && line.charAt(0) === 0xfeff) {
+                    // Eat the BOM, since we've already found the encoding on this file,
+                    // and we plan to concatenating this buffer with others; the BOM should
+                    // only appear at the top of a file.
+                    line = line.substring(1);
+                }
+
+                if (line !== null) {
+                    stringBuffer.append(line);
+                }
+
+                while ((line = input.readLine()) !== null) {
+                    stringBuffer.append(lineSeparator);
+                    stringBuffer.append(line);
+                }
+                //Make sure we return a JavaScript string and not a Java string.
+                content = String(stringBuffer.toString()); //String
+            } finally {
+                input.close();
+            }
+            callback(content);
+        };
+    } else if (masterConfig.env === 'xpconnect' || (!masterConfig.env &&
+            typeof Components !== 'undefined' && Components.classes &&
+            Components.interfaces)) {
+        //Avert your gaze!
+        Cc = Components.classes,
+        Ci = Components.interfaces;
+        Components.utils['import']('resource://gre/modules/FileUtils.jsm');
+
+        text.get = function (url, callback) {
+            var inStream, convertStream,
+                readData = {},
+                fileObj = new FileUtils.File(url);
+
+            //XPCOM, you so crazy
+            try {
+                inStream = Cc['@mozilla.org/network/file-input-stream;1']
+                           .createInstance(Ci.nsIFileInputStream);
+                inStream.init(fileObj, 1, 0, false);
+
+                convertStream = Cc['@mozilla.org/intl/converter-input-stream;1']
+                                .createInstance(Ci.nsIConverterInputStream);
+                convertStream.init(inStream, "utf-8", inStream.available(),
+                Ci.nsIConverterInputStream.DEFAULT_REPLACEMENT_CHARACTER);
+
+                convertStream.readString(inStream.available(), readData);
+                convertStream.close();
+                inStream.close();
+                callback(readData.value);
+            } catch (e) {
+                throw new Error((fileObj && fileObj.path || '') + ': ' + e);
+            }
+        };
+    }
+    return text;
+});
+
+define('lib/text!ui/SplashDialog.html',[],function () { return '<div class="modal-header">\n  <h3>{{ title }}</h3>\n</div>\n<div class="modal-body">\n  {{ message }}\n</div>\n';});
+
+/* global console */
+/**
+This dialog is a display field that can not be interrupted. It is application
+controlled.
+
+@module Client
+@class SplashDialog
+*/
+define('ui/SplashDialog',["lib/text!ui/SplashDialog.html"],
+
+function(template) {
+  
+
+  var name = "SplashDialogController";
+
+  var controller = function($scope, dialog, model) {
+    $scope.title = model.title;
+    $scope.message = model.message;
+  };
+
+  var register = function(module) {
+    module.controller(name, ["$scope", "dialog", "model", controller]);
+  };
+
+  var getBuilder = function(dialogFactory, model) {
+    var options = {
+      backdrop: true,
+      backdropFade: false,
+      backdropClick: false,
+      keyboard: false,
+
+      controller: name,
+      template: template,
+      resolve: {
+        model: function() {
+          return model;
+        }
+      }
+    };
+
+    return dialogFactory.dialog(options);
+  };
+
+  var dialog = {
+    controller: controller,
+    template: template,
+
+    register: register,
+    getBuilder: getBuilder
+  };
+
+  return dialog;
+});
+define('lib/text!ui/CreateSessionDialog.html',[],function () { return '<div class="modal-header">\n  <h3>Create a Session</h3>\n</div>\n<div class="modal-body">\n  <div class="btn-group">\n    <button type="button" class="btn" ng-model="setType" btn-radio="\'space\'">Space</button>\n    <button type="button" class="btn" ng-model="setType" btn-radio="\'chromaKey\'">Chroma Key</button>\n  </div>\n  <div class="row-fluid">\n    <div ng-show="(setType == \'space\')">\n      Select a background:\n      <div class="row-fluid">\n        <select class="span12" ng-model="selectedBackground" ng-options="bg as bg.resourceUrl for bg in backgrounds" size="5"></select>\n      </div>\n    </div>\n    <div ng-show="(setType == \'chromaKey\')">\n      Pick a color (RGB values):\n      <div class="row-fluid">\n        <div class="span4">\n          <input type="text" ng-model="chromaKey" placeholder="#0044BB or #0F0"></input>\n        </div>\n        <div class="span4"></div>\n        <div class="span4 container" ng-style="{ \'backgroundColor\': chromaKey }"></div>\n      </div> \n    </div>\n  </div>\n</div>\n<div class="modal-footer">\n  <button ng-click="create(setType)" class="btn btn-primary" ng-disabled="!canBeCreated()">Create</button>\n</div>\n';});
+
+/**
+This dialog is responsible for determining the parameters of a session to be created.
+
+@module Client
+@class CreateSessionDialog
+*/
+define('ui/CreateSessionDialog',["lib/text!ui/CreateSessionDialog.html"],
+
+function(template) {
+  
+
+  var name = "CreateSessionDialogController";
+
+  var colorStringParser = {
+    "^#([0-9A-Fa-f]){6}$": function(value) {
+      var r = parseInt(value.substr(1, 2), 16);
+      var g = parseInt(value.substr(3, 2), 16);
+      var b = parseInt(value.substr(5, 2), 16);
+
+      return [r / 255.0, g / 255.0, b / 255.0];
+    },
+    "^#([0-9A-Fa-f]){3}$": function(value) {
+      var r = parseInt(value.substr(1, 1), 16);
+      var g = parseInt(value.substr(2, 1), 16);
+      var b = parseInt(value.substr(3, 1), 16);
+
+      return [r / 15.0, g / 15.0, b / 15.0];
+    }
+  };
+
+  var forEachMatchingColorStringParser = function(colorString, callback) {
+    var expression;
+    var regExp;
+
+    for (expression in colorStringParser) {
+      regExp = new RegExp(expression);
+      if (regExp.test(colorString)) {
+        callback(colorStringParser[expression]);
+      }
+    }
+  };
+
+  var parseColor = function(colorString) {
+    var result = [0, 0, 0];
+
+    forEachMatchingColorStringParser(colorString, function(parser) {
+      result = parser(colorString);
+    });
+
+    return result;
+  };
+
+  var isColorValid = function(colorString) {
+    var result = false;
+
+    forEachMatchingColorStringParser(colorString, function() {
+      result = true;
+    });
+
+    return result;
+  };
+
+  var controller = function($scope, dialog, model) {
+    $scope.setType = "space";
+    // space set data
+    $scope.backgrounds = model.backgrounds;
+    $scope.selectedBackground = model.backgrounds[0];
+    // chromaKey set data
+    $scope.chromaKey = "#00FF00";
+
+    $scope.canBeCreated = function() {
+      var result = false;
+
+      if ($scope.setType === "space") {
+        result = !! $scope.selectedBackground;
+      } else if ($scope.setType === "chromaKey") {
+        result = isColorValid($scope.chromaKey);
+      }
+
+      return result;
+    };
+
+    $scope.create = function(setType) {
+      var notifier = {};
+
+      notifier.space = function(user) {
+        return user.createSpaceSet($scope.selectedBackground);
+      };
+      notifier.chromaKey = function(user) {
+        return user.createChromaKeyedSet(parseColor($scope.chromaKey));
+      };
+
+      dialog.close(notifier[setType]);
+    };
+  };
+
+  var register = function(module) {
+    module.controller(name, ["$scope", "dialog", "model", controller]);
+  };
+
+  var getBuilder = function(dialogFactory, model) {
+    var options = {
+      backdrop: true,
+      backdropFade: false,
+      backdropClick: false,
+      keyboard: false,
+
+      controller: name,
+      template: template,
+      resolve: {
+        model: function() {
+          return model;
+        }
+      }
+    };
+
+    return dialogFactory.dialog(options);
+  };
+
+  var dialog = {
+    controller: controller,
+    template: template,
+
+    register: register,
+    getBuilder: getBuilder
+  };
+
+  return dialog;
+});
+/**
+This is a helper object to collect all dialogs
+
+@module Client
+@class Dialogs
+*/
+define('ui/Dialogs',["ui/SplashDialog", "ui/CreateSessionDialog"],
+
+function(splashDialog, createSessionDialog) {
+  
+
+  var dialogs = {
+    splashDialog: splashDialog,
+    createSessionDialog: createSessionDialog
+  };
+
+  return dialogs;
+});
+/**
 The helper is a static object providing some helper constants and functions.
 
 @module Client
@@ -1096,12 +1674,12 @@ The ApplicationController is the master controller for the app
 @module Client
 @class ApplicationController
 */
-define('ApplicationController',["Defaults", "production/Resources", "controls/GamepadApi",
+define('ApplicationController',["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
     "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/ccp/res/SceneryArchetype",
     "production/Track", "production/Reel"
 ],
 
-function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
+function(defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
   
 
   var addShip = function(modelView, resourceUrl) {
@@ -1178,27 +1756,67 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     addScenery(modelView, "res:/dx9/model/worldobject/asteroid/zuthrine/shards/zuthrine_shard01_unmined.red");
   };
 
-  var ApplicationController = function(modelView, config, productionManager, mainScreen) {
+  var ApplicationController = function(modelView, dialogFactory, config, productionManager, mainScreen) {
     var that = this;
 
     this.productionManager = productionManager;
     this.modelView = modelView;
+    this.dialogFactory = dialogFactory;
 
     initModelView(modelView, this, config);
 
     productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
 
-    var promisedSet = productionManager.createSet(mainScreen, "res:/dx9/scene/universe/a01_cube.red");
-    //var promisedSet = productionManager.createChromaKeyedSet(mainScreen, [0.0, 1.0, 0.0, 1.0]);
+    var createDialogListener = {
+      createSpaceSet: function(background) {
+        return productionManager.createSet(mainScreen, background.resourceUrl);
+      },
+      createChromaKeyedSet: function(color) {
+        return productionManager.createChromaKeyedSet(mainScreen, color);
+      }
+    };
 
-    promisedSet.then(function(set) {
+    var dialogParams = {
+      backgrounds: [{
+          resourceUrl: "res:/dx9/scene/universe/a01_cube.red"
+        }
+      ]
+    };
+    var dialogTemplate = uiDialogs.createSessionDialog.getBuilder(this.dialogFactory, dialogParams);
+    var loadingDialog = null;
+
+    dialogTemplate.open().then(function(result) {
+      loadingDialog = that.showSplash("Creating set...", "Please wait.");
+
+      return result(createDialogListener);
+    }).then(function(set) {
+      loadingDialog.close();
+      loadingDialog = null;
       that.onSetCreated(set);
       modelView.status = "Set created";
       modelView.$apply();
     }, function(err) {
-      modelView.status = err;
-      modelView.$apply();
+      var reason = (err && (err.message || err)) || "Unknown reason. That's bad.";
+
+      loadingDialog.close();
+      loadingDialog = null;
+      that.showSplash("Failed to create a set. Try Reloading.", reason);
     });
+  };
+
+  ApplicationController.prototype.showSplash = function(title, message) {
+    var params = {
+      title: title,
+      message: message
+    };
+    var dialog = uiDialogs.splashDialog.getBuilder(this.dialogFactory, params);
+    var result = dialog.open();
+
+    if (!this.modelView.$$phase) {
+      this.modelView.$apply();
+    }
+
+    return dialog;
   };
 
   ApplicationController.prototype.addProp = function(arch) {
@@ -1383,8 +2001,8 @@ function(defaults, Resources, GamepadApi, ShipArchetype, PlanetArchetype, Scener
     @return {Function} Controller function
   */
   var create = function(config, productionManager, mainScreen) {
-    return function($scope) {
-      return new ApplicationController($scope, config, productionManager, mainScreen);
+    return function($scope, $dialog) {
+      return new ApplicationController($scope, $dialog, config, productionManager, mainScreen);
     };
   };
 
@@ -1705,23 +2323,46 @@ function(q, SyncSource, Set, Stage, SceneCamera, LightBoard) {
   return ProductionManager;
 });
 /**
+The Controller list collects all controller modules
+
+@module Client
+@class Controller
+*/
+define('ui/ControllerList',["ui/SplashDialog", "ui/CreateSessionDialog"],
+
+function(splashDialog, createSessionDialog) {
+  
+
+  var controller = [
+    splashDialog,
+    createSessionDialog
+  ];
+
+  return controller;
+});
+/* jshint maxparams:10 */
+/**
 ClientApp is the primary entry point for the main client side application
 
 @module Client
 @class ClientApp
 */
-define('ClientApp',["module", "angular", "lib/ccpwgl", "ApplicationController", "production/ccp/ProductionManager"],
+define('ClientApp',["module", "angular", "lib/ccpwgl", "ApplicationController", "production/ccp/ProductionManager", "ui/ControllerList"],
 
-function(module, angular, ccpwgl, appController, ProductionManager) {
+function(module, angular, ccpwgl, appController, ProductionManager, controllerList) {
   
 
   var config = module.config();
 
   var main = function(mainScreen) {
-    var appModule = angular.module("ClientApp", []);
+    var appModule = angular.module("ClientApp", ["ui.bootstrap"]);
     var productionManager = new ProductionManager(ccpwgl);
 
-    appModule.controller("ApplicationController", ["$scope", appController.create(config, productionManager, mainScreen)]);
+    appModule.controller("ApplicationController", ["$scope", "$dialog", appController.create(config, productionManager, mainScreen)]);
+
+    controllerList.forEach(function(controller) {
+      controller.register(appModule);
+    });
 
     return [appModule.name];
   };
