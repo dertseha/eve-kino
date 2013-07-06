@@ -1,9 +1,12 @@
 "use strict";
 
 module.exports = function(grunt) {
+  var pkg = grunt.file.readJSON("package.json");
+  var versionFunction = "function() { return \"" + pkg.version + "\"; }";
+  var versionModule = "define([], " + versionFunction + ");";
 
   grunt.initConfig({
-    pkg: grunt.file.readJSON("package.json"),
+    pkg: pkg,
 
     // Run JSHint on all sources, excluding the generated or imported client scripts
     jshint: {
@@ -25,10 +28,10 @@ module.exports = function(grunt) {
       }
     },
 
+    // Run Jade to compile the UI templates into AMD files
     jade: {
       uiTemplates: {
         options: {
-          data: {},
           compileDebug: false,
           client: true,
           namespace: "UiTemplates",
@@ -62,6 +65,9 @@ module.exports = function(grunt) {
           },
           dir: "build/client/full",
 
+          rawText: {
+            version: versionModule
+          },
           optimize: "none"
         }
       },
@@ -78,6 +84,10 @@ module.exports = function(grunt) {
             jade: "lib/jade"
           },
           dir: "build/client/min",
+
+          rawText: {
+            version: versionModule
+          },
 
           optimize: "uglify2"
         }
@@ -104,6 +114,9 @@ module.exports = function(grunt) {
         test: {
           reporter: "specification",
           "config-group": "Server tests raw"
+        },
+        server: {
+          port: 9048
         }
       },
       serverCov: {

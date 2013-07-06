@@ -7,3 +7,9 @@ requirejs.config({
   },
   waitSeconds: 2
 });
+
+define("version", [], function() {
+  "use strict";
+
+  return "(test)";
+});

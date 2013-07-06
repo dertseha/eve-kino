@@ -2,19 +2,33 @@ extends layout
 
 block content
   div(data-ng-controller="ApplicationController")
-    span Status: {{status}}
-    div(id="view")
-      canvas(id="mainScreen")
-    div(id="controls")
-      button(ng-click="record()") Record 
-      button(ng-click="stop()") Stop
-      button(ng-click="play()") Play
-    div(id="focusSelection")
-      button(ng-click="setFocusOnCamera()") Focus Camera
-      select(ng-model="selectedFocus", ng-options="prop as prop.toString() for prop in stageProps", ng-change="setFocusOnProp(selectedFocus)", size="5")
-    div(id="propCreation")
-      select(ng-model="selectedProp", ng-options="prop as prop.resourceUrl for prop in props", size="5")
-      button(ng-click="addProp(selectedProp)") Add Prop
+    div(class="container-fluid")
+      div(class="row-fluid")
+        div(class="span4", id="focusSelection")
+          div(class="row-fluid")
+            h5 Focus Selection
+          div(class="row-fluid")
+            button(class="span12", ng-click="setFocusOnCamera()") Focus Camera
+            select(class="span12", ng-model="selectedFocus", ng-options="prop as prop.toString() for prop in stageProps", ng-change="setFocusOnProp(selectedFocus)", size="5")
+          div(class="row-fluid")
+            h5 Playhead Controls
+          div(class="row-fluid")
+            div(class="span12")
+              button(class="span4", ng-click="record()") Record 
+              button(class="span4", ng-click="stop()") Stop
+              button(class="span4", ng-click="play()") Play
+          div(class="row-fluid")
+            span(class="span12") Status: {{status}}
+        div(class="span8", id="view")
+          canvas(id="mainScreen")
+      div(class="row-fluid")
+        div(class="offset4 span8", id="propCreation")
+          div(class="row-fluid")
+            h5 New Props
+          div(class="row-fluid")
+            select(class="span12", ng-model="selectedProp", ng-options="prop as prop.resourceUrl for prop in props", size="5")
+          div(class="row-fluid")
+            button(class="span2", ng-click="addProp(selectedProp)") Add Prop
 
   script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/gamepad.js")
   script(type="text/javascript", charset="utf-8", src="/javascripts/" + build + "/lib/gl-matrix.js")

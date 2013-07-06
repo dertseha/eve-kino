@@ -4,9 +4,9 @@ This dialog is responsible for determining the parameters of a session to be cre
 @module Client
 @class CreateSessionDialog
 */
-define(["ui/UiTemplates"],
+define(["ui/UiTemplates", "version"],
 
-function(templates) {
+function(templates, version) {
   "use strict";
 
   var name = "CreateSessionDialogController";
@@ -62,6 +62,8 @@ function(templates) {
   };
 
   var controller = function($scope, dialog, model) {
+    $scope.version = version;
+
     $scope.setType = "space";
     // space set data
     $scope.backgrounds = model.backgrounds;
