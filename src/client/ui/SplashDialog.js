@@ -6,12 +6,13 @@ controlled.
 @module Client
 @class SplashDialog
 */
-define(["lib/text!ui/SplashDialog.html"],
+define(["ui/UiTemplates"],
 
-function(template) {
+function(templates) {
   "use strict";
 
   var name = "SplashDialogController";
+  var template = templates.SplashDialog();
 
   var controller = function($scope, dialog, model) {
     $scope.title = model.title;

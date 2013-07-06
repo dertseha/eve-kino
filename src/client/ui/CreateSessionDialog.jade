@@ -1,0 +1,22 @@
+div(class="modal-header")
+  h3 Create a Session
+
+div(class="modal-body")
+  div(class="btn-group")
+    button(type="button", class="btn", ng-model="setType", btn-radio="'space'") Space
+    button(type="button", class="btn", ng-model="setType", btn-radio="'chromaKey'") Chroma Key
+
+  div(class="row-fluid")
+    div(ng-show="(setType == 'space')") Select a background:
+      div(class="row-fluid")
+        select(class="span12", ng-model="selectedBackground", ng-options="bg as bg.resourceUrl for bg in backgrounds", size="5")
+
+    div(ng-show="(setType == 'chromaKey')") Pick a color (RGB values):
+      div(class="row-fluid")
+        div(class="span4")
+          input(type="text", ng-model="chromaKey", placeholder="#0044BB or #0F0")
+        div(class="span4")
+        div(class="span4 container", ng-style="{ 'backgroundColor': chromaKey }")
+
+div(class="modal-footer")
+  button(ng-click="create(setType)", class="btn btn-primary", ng-disabled="!canBeCreated()") Create

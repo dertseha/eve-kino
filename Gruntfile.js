@@ -10,7 +10,7 @@ module.exports = function(grunt) {
       options: {
         jshintrc: "./.jshintrc"
       },
-      all: ["Gruntfile.js", "src/client/**/*.js", "!src/client/lib/**/*.js", "src/server/**/*.js", "test/**/*.js"]
+      all: ["Gruntfile.js", "src/client/**/*.js", "!src/client/ui/UiTemplates.js", "src/server/**/*.js", "test/**/*.js"]
     },
 
     // Run Plato (static analysis) on server and client sources
@@ -21,6 +21,27 @@ module.exports = function(grunt) {
         },
         files: {
           "build/reports/plato": ["src/client/**/*.js", "src/server/**/*.js"]
+        }
+      }
+    },
+
+    jade: {
+      uiTemplates: {
+        options: {
+          data: {},
+          compileDebug: false,
+          client: true,
+          namespace: "UiTemplates",
+          amd: true,
+          processName: function(fileName) {
+            var pathIndex = fileName.lastIndexOf("/");
+            var dotIndex = fileName.lastIndexOf(".");
+
+            return fileName.substring(pathIndex + 1, dotIndex);
+          }
+        },
+        files: {
+          "src/client/ui/UiTemplates.js": ["src/client/ui/**/*.jade"]
         }
       }
     },
@@ -36,6 +57,9 @@ module.exports = function(grunt) {
               exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js"]
             }
           ],
+          paths: {
+            jade: "lib/jade"
+          },
           dir: "build/client/full",
 
           optimize: "none"
@@ -50,6 +74,9 @@ module.exports = function(grunt) {
               exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js"]
             }
           ],
+          paths: {
+            jade: "lib/jade"
+          },
           dir: "build/client/min",
 
           optimize: "uglify2"
@@ -158,6 +185,7 @@ module.exports = function(grunt) {
 
   grunt.loadNpmTasks("grunt-buster");
   grunt.loadNpmTasks("grunt-contrib-copy");
+  grunt.loadNpmTasks("grunt-contrib-jade");
   grunt.loadNpmTasks("grunt-contrib-jshint");
   grunt.loadNpmTasks("grunt-contrib-requirejs");
   grunt.loadNpmTasks("grunt-contrib-watch");
@@ -165,8 +193,8 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks("grunt-plato");
 
   grunt.registerTask("buster-all", ["buster:clientRaw", "buster:clientMin", "buster:server"]);
-  grunt.registerTask("default", ["jshint", "plato", "requirejs:compile", "requirejs:minify", "copy", "buster-all", "yuidoc"]);
-  grunt.registerTask("compile", ["jshint", "requirejs:compile", "requirejs:minify", "copy"]);
+  grunt.registerTask("default", ["jshint", "plato", "jade", "requirejs:compile", "requirejs:minify", "copy", "buster-all", "yuidoc"]);
+  grunt.registerTask("compile", ["jshint", "jade", "requirejs:compile", "requirejs:minify", "copy"]);
   grunt.registerTask("coverage", ["buster:serverCov", "buster:clientCov"]);
   grunt.registerTask("test", ["jshint", "buster-all"]);
 };

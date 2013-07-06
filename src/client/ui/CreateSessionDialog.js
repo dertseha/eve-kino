@@ -4,12 +4,13 @@ This dialog is responsible for determining the parameters of a session to be cre
 @module Client
 @class CreateSessionDialog
 */
-define(["lib/text!ui/CreateSessionDialog.html"],
+define(["ui/UiTemplates"],
 
-function(template) {
+function(templates) {
   "use strict";
 
   var name = "CreateSessionDialogController";
+  var template = templates.CreateSessionDialog();
 
   var colorStringParser = {
     "^#([0-9A-Fa-f]){6}$": function(value) {

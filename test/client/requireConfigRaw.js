@@ -2,7 +2,8 @@
 requirejs.config({
   baseUrl: "src/client/",
   paths: {
-    "lib/text": ["lib/text"],
+    "jade": "lib/jade",
     "lib": ["../wwwroot/javascripts/full/lib"]
-  }
+  },
+  waitSeconds: 2
 });
