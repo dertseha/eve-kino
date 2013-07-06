@@ -40,7 +40,7 @@
     "phantomjs": "~1.9.0-3"
   },
   "engines": {
-    "node": ">=0.8.x"
+    "node": ">=0.10.x"
   },
   "scripts": {
     "start": "node src/server/server.js",
