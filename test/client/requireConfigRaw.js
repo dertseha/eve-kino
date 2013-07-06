@@ -5,7 +5,7 @@ requirejs.config({
     "jade": "lib/jade",
     "lib": ["../wwwroot/javascripts/full/lib"]
   },
-  waitSeconds: 2
+  waitSeconds: 20
 });
 
 define("version", [], function() {
