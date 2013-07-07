@@ -105,7 +105,7 @@ function(templates) {
 
   return dialog;
 });
-define('version',[], function() { return "0.0.2"; });
+define('version',[], function() { return "0.0.3"; });
 /**
 This dialog is responsible for determining the parameters of a session to be created.
 
