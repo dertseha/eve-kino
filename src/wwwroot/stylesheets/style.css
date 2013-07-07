@@ -1,5 +1,7 @@
-#mainScreen {
+.filmView {
   background: black;
-  width: 800px;
-  height: 450px;
+}
+
+.filmViewPort {
+  background: black;
 }

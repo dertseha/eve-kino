@@ -1,8 +1,9 @@
 /**
-The helper is a static object providing some helper constants and functions.
+The helper is a static object providing some helper constants and functions
+for GL related topics.
 
 @module Client
-@class Helper
+@class GlHelper
 */
 define(["lib/gl-matrix"], function(glMatrix) {
   "use strict";

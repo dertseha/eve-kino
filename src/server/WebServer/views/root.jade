@@ -4,7 +4,7 @@ block content
   div(data-ng-controller="ApplicationController")
     div(class="container-fluid")
       div(class="row-fluid")
-        div(class="span4", id="focusSelection")
+        div(class="span4", id="sideBar")
           div(class="row-fluid")
             h5 Focus Selection
           div(class="row-fluid")
@@ -19,8 +19,13 @@ block content
               button(class="span4", ng-click="play()") Play
           div(class="row-fluid")
             span(class="span12") Status: {{status}}
-        div(class="span8", id="view")
-          canvas(id="mainScreen")
+        div(class="span8")
+          div(class="row-fluid")
+            div(class="span12 filmView", id="mainView", data-film-view)
+              canvas(class="filmViewPort", id="mainScreen", ng-style="style()")
+          div(class="row-fluid")
+            button(class="btn btn-mini", ng-click="goFullscreen()") Full-Screen
+
       div(class="row-fluid")
         div(class="offset4 span8", id="propCreation")
           div(class="row-fluid")
