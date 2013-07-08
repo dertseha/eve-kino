@@ -13,6 +13,7 @@ var WebServer = function(configuration) {
 
   var httpConfig = configuration.get("http");
   var cookieSecret = httpConfig.cookieSecret;
+  var wwwRootPath = path.join(__dirname, "../../wwwroot");
 
   var webServer = express();
 
@@ -27,7 +28,7 @@ var WebServer = function(configuration) {
     webServer.set("port", httpConfig.port);
     webServer.set("views", __dirname + "/views");
     webServer.set("view engine", "jade");
-    webServer.use(express.favicon());
+    webServer.use(express.favicon(path.normalize(wwwRootPath + '/images/favicon_16.ico')));
     // webServer.use(logger);
     webServer.use(express.cookieParser(cookieSecret));
     webServer.use(express.bodyParser());
@@ -36,7 +37,7 @@ var WebServer = function(configuration) {
       secret: sessionSecret
     }));
     webServer.use(webServer.router);
-    webServer.use(express["static"](path.join(__dirname, "../../wwwroot")));
+    webServer.use(express["static"](wwwRootPath));
   });
 
   // webServer.configure("development", function() {
