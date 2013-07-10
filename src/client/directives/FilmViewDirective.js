@@ -6,58 +6,58 @@ its contained port.
 @class FilmViewDirective
 */
 define(["util/BrowserHelper"], function(browserHelper) {
-	"use strict";
+  "use strict";
 
-	var register = function(angular, appModule) {
-		appModule.directive("filmView", function($window) {
-			return function(scope, element) {
-				var area = element[0];
-				var win = angular.element($window);
-				var ratio = 16.0 / 9.0;
+  var register = function(angular, appModule) {
+    appModule.directive("filmView", function($window) {
+      return function(scope, element) {
+        var area = element[0];
+        var win = angular.element($window);
+        var ratio = 16.0 / 9.0;
 
-				scope.getAreaDimension = function() {
-					return {
-						width: area.clientWidth,
-						height: area.clientHeight
-					};
-				};
+        scope.getAreaDimension = function() {
+          return {
+            width: area.clientWidth,
+            height: area.clientHeight
+          };
+        };
 
-				scope.goFullscreen = function() {
-					if (!area.requestFullScreen) {
-						area.requestFullScreen = browserHelper.findPrefixProperty(area, "RequestFullScreen", function() {});
-					}
-					area.requestFullScreen();
-				};
+        scope.goFullscreen = function() {
+          if (!area.requestFullScreen) {
+            area.requestFullScreen = browserHelper.findPrefixProperty(area, "RequestFullScreen", function() {});
+          }
+          area.requestFullScreen();
+        };
 
-				scope.$watch(scope.getAreaDimension, function(newValue, oldValue) {
-					scope.style = function() {
-						var height = (newValue.width / ratio).toFixed(0);
-						var top = 0;
+        scope.$watch(scope.getAreaDimension, function(newValue, oldValue) {
+          scope.style = function() {
+            var height = (newValue.width / ratio).toFixed(0);
+            var top = 0;
 
-						if (newValue.height > height) {
-							top = ((newValue.height - height) / 2).toFixed(0);
-						}
+            if (newValue.height > height) {
+              top = ((newValue.height - height) / 2).toFixed(0);
+            }
 
-						return {
-							position: "relative",
-							top: top + "px",
-							width: newValue.width + "px",
-							height: height + "px"
-						};
-					};
-				}, true);
+            return {
+              position: "relative",
+              top: top + "px",
+              width: newValue.width + "px",
+              height: height + "px"
+            };
+          };
+        }, true);
 
-				win.bind("resize", function() {
-					scope.$apply();
-				});
-			};
-		});
+        win.bind("resize", function() {
+          scope.$apply();
+        });
+      };
+    });
 
-	};
+  };
 
-	var directive = {
-		register: register
-	};
+  var directive = {
+    register: register
+  };
 
-	return directive;
+  return directive;
 });

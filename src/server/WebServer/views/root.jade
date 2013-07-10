@@ -5,6 +5,8 @@ block content
     div(class="container-fluid")
       div(class="row-fluid")
         div(class="span4", id="sideBar")
+          div(class="row-fluid", id="menu")
+            a(href="#", data-save-as) Save Data
           div(class="row-fluid")
             h5 Focus Selection
           div(class="row-fluid")
@@ -69,6 +71,9 @@ block content
     require(["angular", "ui-bootstrap", "ClientApp"], function(angular, uiBootstrap, app) {
       var mainScreen = document.getElementById("mainScreen");
       var appModuleNames = app(mainScreen);
+
+      //var link = document.getElementById("save");
+      //link.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({}));
 
       angular.bootstrap(document, appModuleNames);
     });

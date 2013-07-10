@@ -63,6 +63,10 @@ function(defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchet
       controller.setFocusOnProp(prop);
     };
 
+    modelView.encodeSession = function() {
+      return controller.encodeSession();
+    };
+
     modelView.stageProps = [];
 
     modelView.props = [];
@@ -149,6 +153,12 @@ function(defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchet
     }
 
     return dialog;
+  };
+
+  ApplicationController.prototype.encodeSession = function() {
+    var session = {};
+
+    return JSON.stringify(session);
   };
 
   ApplicationController.prototype.addProp = function(arch) {

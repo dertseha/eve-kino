@@ -1,14 +1,13 @@
 /* jshint maxparams:10 */
-/* global document */
 /**
 ClientApp is the primary entry point for the main client side application
 
 @module Client
 @class ClientApp
 */
-define(["module", "angular", "lib/ccpwgl", "ApplicationController", "production/ccp/ProductionManager", "ui/ControllerList", "directives/FilmViewDirective"],
+define(["module", "angular", "lib/ccpwgl", "ApplicationController", "production/ccp/ProductionManager", "ui/ControllerList", "directives/DirectiveList"],
 
-function(module, angular, ccpwgl, appController, ProductionManager, controllerList, filmViewDirective) {
+function(module, angular, ccpwgl, appController, ProductionManager, controllerList, directiveList) {
   "use strict";
 
   var config = module.config();
@@ -19,7 +18,9 @@ function(module, angular, ccpwgl, appController, ProductionManager, controllerLi
 
     appModule.controller("ApplicationController", ["$scope", "$dialog", appController.create(config, productionManager, mainScreen)]);
 
-    filmViewDirective.register(angular, appModule);
+    directiveList.forEach(function(directive) {
+      directive.register(angular, appModule);
+    });
 
     controllerList.forEach(function(controller) {
       controller.register(appModule);

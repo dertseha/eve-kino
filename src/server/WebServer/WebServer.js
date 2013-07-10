@@ -28,7 +28,7 @@ var WebServer = function(configuration) {
     webServer.set("port", httpConfig.port);
     webServer.set("views", __dirname + "/views");
     webServer.set("view engine", "jade");
-    webServer.use(express.favicon(path.normalize(wwwRootPath + '/images/favicon_16.ico')));
+    webServer.use(express.favicon(path.normalize(wwwRootPath + "/images/favicon_16.ico")));
     // webServer.use(logger);
     webServer.use(express.cookieParser(cookieSecret));
     webServer.use(express.bodyParser());

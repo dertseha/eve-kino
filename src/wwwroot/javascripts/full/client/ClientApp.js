@@ -1379,6 +1379,10 @@ function(defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchet
       controller.setFocusOnProp(prop);
     };
 
+    modelView.encodeSession = function() {
+      return controller.encodeSession();
+    };
+
     modelView.stageProps = [];
 
     modelView.props = [];
@@ -1465,6 +1469,12 @@ function(defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchet
     }
 
     return dialog;
+  };
+
+  ApplicationController.prototype.encodeSession = function() {
+    var session = {};
+
+    return JSON.stringify(session);
   };
 
   ApplicationController.prototype.addProp = function(arch) {
@@ -2038,72 +2048,141 @@ its contained port.
 @class FilmViewDirective
 */
 define('directives/FilmViewDirective',["util/BrowserHelper"], function(browserHelper) {
-	
+  
 
-	var register = function(angular, appModule) {
-		appModule.directive("filmView", function($window) {
-			return function(scope, element) {
-				var area = element[0];
-				var win = angular.element($window);
-				var ratio = 16.0 / 9.0;
+  var register = function(angular, appModule) {
+    appModule.directive("filmView", function($window) {
+      return function(scope, element) {
+        var area = element[0];
+        var win = angular.element($window);
+        var ratio = 16.0 / 9.0;
 
-				scope.getAreaDimension = function() {
-					return {
-						width: area.clientWidth,
-						height: area.clientHeight
-					};
-				};
+        scope.getAreaDimension = function() {
+          return {
+            width: area.clientWidth,
+            height: area.clientHeight
+          };
+        };
 
-				scope.goFullscreen = function() {
-					if (!area.requestFullScreen) {
-						area.requestFullScreen = browserHelper.findPrefixProperty(area, "RequestFullScreen", function() {});
-					}
-					area.requestFullScreen();
-				};
+        scope.goFullscreen = function() {
+          if (!area.requestFullScreen) {
+            area.requestFullScreen = browserHelper.findPrefixProperty(area, "RequestFullScreen", function() {});
+          }
+          area.requestFullScreen();
+        };
 
-				scope.$watch(scope.getAreaDimension, function(newValue, oldValue) {
-					scope.style = function() {
-						var height = (newValue.width / ratio).toFixed(0);
-						var top = 0;
+        scope.$watch(scope.getAreaDimension, function(newValue, oldValue) {
+          scope.style = function() {
+            var height = (newValue.width / ratio).toFixed(0);
+            var top = 0;
 
-						if (newValue.height > height) {
-							top = ((newValue.height - height) / 2).toFixed(0);
-						}
+            if (newValue.height > height) {
+              top = ((newValue.height - height) / 2).toFixed(0);
+            }
 
-						return {
-							position: "relative",
-							top: top + "px",
-							width: newValue.width + "px",
-							height: height + "px"
-						};
-					};
-				}, true);
+            return {
+              position: "relative",
+              top: top + "px",
+              width: newValue.width + "px",
+              height: height + "px"
+            };
+          };
+        }, true);
 
-				win.bind("resize", function() {
-					scope.$apply();
-				});
-			};
-		});
+        win.bind("resize", function() {
+          scope.$apply();
+        });
+      };
+    });
 
-	};
+  };
 
-	var directive = {
-		register: register
-	};
+  var directive = {
+    register: register
+  };
 
-	return directive;
+  return directive;
+});
+/* global Blob */
+/**
+The data-save-as directive handles saving of the session to a file.
+
+@module Client
+@class SaveAsDirective
+*/
+define('directives/SaveAsDirective',["util/BrowserHelper"], function(browserHelper) {
+  
+
+  var register = function(angular, appModule) {
+    appModule.directive("saveAs", function($window) {
+      return function(scope, element, attrs) {
+        var rawElement = element[0];
+        var url = $window.URL;
+
+        if (!url) {
+          url = browserHelper.findPrefixProperty($window, "URL", {
+            createObjectURL: function() {
+              return "#";
+            }
+          });
+        }
+
+        rawElement.target = "_blank";
+        rawElement.download = "session.json";
+        element.bind("click", function(event) {
+          rawElement.href = "#";
+        });
+
+        element.bind("click", function() {
+          var textToWrite = scope.encodeSession();
+          var textFileAsBlob = new Blob([textToWrite], {
+            type: "application/json;charset=utf-8"
+          });
+
+          rawElement.href = url.createObjectURL(textFileAsBlob);
+        });
+
+      };
+    });
+
+  };
+
+  var directive = {
+    register: register
+  };
+
+  return directive;
+});
+/**
+The Directive list collects all directives
+
+@module Client
+@class DirectiveList
+*/
+define('directives/DirectiveList',["directives/FilmViewDirective", "directives/SaveAsDirective"],
+
+function() {
+  
+
+  var directives = [];
+  var i;
+
+  for (i = 0; i < arguments.length; i++) {
+    directives.push(arguments[i]);
+  }
+
+  return directives;
 });
 /* jshint maxparams:10 */
-/* global document */
 /**
 ClientApp is the primary entry point for the main client side application
 
 @module Client
 @class ClientApp
 */
-define('ClientApp',["module", "angular", "lib/ccpwgl", "ApplicationController", "production/ccp/ProductionManager", "ui/ControllerList", "directives/FilmViewDirective"],
+define('ClientApp',["module", "angular", "lib/ccpwgl", "ApplicationController", "production/ccp/ProductionManager", "ui/ControllerList", "directives/DirectiveList"],
 
-function(module, angular, ccpwgl, appController, ProductionManager, controllerList, filmViewDirective) {
+function(module, angular, ccpwgl, appController, ProductionManager, controllerList, directiveList) {
   
 
   var config = module.config();
@@ -2114,7 +2193,40 @@ function(module, angular, ccpwgl, appController, ProductionManager, controllerLi
 
     appModule.controller("ApplicationController", ["$scope", "$dialog", appController.create(config, productionManager, mainScreen)]);
 
-    filmViewDirective.register(angular, appModule);
+    directiveList.forEach(function(directive) {
+      directive.register(angular, appModule);
+    });
+
+    // appModule.directive("saveAs", function($window) {
+    //   return function(scope, element, attrs) {
+    //     var rawElement = element[0];
+    //     var url = $window.URL;
+
+    //     if (!url) {
+    //       url = browserHelper.findPrefixProperty($window, "URL", {
+    //         createObjectURL: function() {
+    //           return "#";
+    //         }
+    //       });
+    //     }
+
+    //     rawElement.target = "_blank";
+    //     rawElement.download = "session.json";
+    //     element.bind("click", function(event) {
+    //       rawElement.href = "#";
+    //     });
+
+    //     element.bind("click", function() {
+    //       var textToWrite = scope.encodeSession();
+    //       var textFileAsBlob = new Blob([textToWrite], {
+    //         type: "application/json;charset=utf-8"
+    //       });
+
+    //       rawElement.href = url.createObjectURL(textFileAsBlob);
+    //     });
+
+    //   };
+    // });
 
     controllerList.forEach(function(controller) {
       controller.register(appModule);
