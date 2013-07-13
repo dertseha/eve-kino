@@ -378,6 +378,7 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       this.reel.skipTo(0);
 
       if (this.focusTarget) {
+        this.focusTarget.resetToRecording();
         this.focusTarget.setCommandChannel(this.focusCommandChannel);
         this.focusTrack.setRecording(false);
       }

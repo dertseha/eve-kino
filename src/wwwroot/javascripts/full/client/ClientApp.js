@@ -492,10 +492,9 @@ define('production/Animator',["lib/gl-matrix", "util/GlHelper"], function(glMatr
 
   Animator.prototype.setCommandChannel = function(commandChannel) {
     this.commandChannel = commandChannel;
-    this.resetToScript();
   };
 
-  Animator.prototype.resetToScript = function() {
+  Animator.prototype.resetToRecording = function() {
     var lastState = this.prop.getStateData(this.lastState);
     var resetState = this.script.getFrameData() || lastState;
 
@@ -778,8 +777,8 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
   
 
   var actionNames = [
-      "pitchUp", "pitchDown", "rollClockwise", "rollCounter", "yawRight", "yawLeft",
-      "moveUp", "moveDown", "moveForward", "moveBackward", "moveRight", "moveLeft"
+    "pitchUp", "pitchDown", "rollClockwise", "rollCounter", "yawRight", "yawLeft",
+    "moveUp", "moveDown", "moveForward", "moveBackward", "moveRight", "moveLeft"
   ];
 
   var tempVec3 = glMatrix.vec3.create();
@@ -837,17 +836,16 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(
 
   CameraOperator.prototype.setCommandChannel = function(commandChannel) {
     this.commandChannel = commandChannel;
-    this.resetToShotList();
   };
 
   CameraOperator.prototype.setChaseObject = function(object) {
     this.chaseObject = object;
     if (!this.chaseObject) {
-      this.resetToShotList();
+      this.resetToRecording();
     }
   };
 
-  CameraOperator.prototype.resetToShotList = function() {
+  CameraOperator.prototype.resetToRecording = function() {
     var camera = this.camera;
     var lastState = camera.getStateData(this.lastState);
     var resetState = this.shotList.getFrameData() || lastState;
@@ -1836,6 +1834,7 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       this.reel.skipTo(0);
 
       if (this.focusTarget) {
+        this.focusTarget.resetToRecording();
         this.focusTarget.setCommandChannel(this.focusCommandChannel);
         this.focusTrack.setRecording(false);
       }

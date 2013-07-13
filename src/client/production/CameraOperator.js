@@ -9,8 +9,8 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
   "use strict";
 
   var actionNames = [
-      "pitchUp", "pitchDown", "rollClockwise", "rollCounter", "yawRight", "yawLeft",
-      "moveUp", "moveDown", "moveForward", "moveBackward", "moveRight", "moveLeft"
+    "pitchUp", "pitchDown", "rollClockwise", "rollCounter", "yawRight", "yawLeft",
+    "moveUp", "moveDown", "moveForward", "moveBackward", "moveRight", "moveLeft"
   ];
 
   var tempVec3 = glMatrix.vec3.create();
@@ -68,17 +68,16 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
 
   CameraOperator.prototype.setCommandChannel = function(commandChannel) {
     this.commandChannel = commandChannel;
-    this.resetToShotList();
   };
 
   CameraOperator.prototype.setChaseObject = function(object) {
     this.chaseObject = object;
     if (!this.chaseObject) {
-      this.resetToShotList();
+      this.resetToRecording();
     }
   };
 
-  CameraOperator.prototype.resetToShotList = function() {
+  CameraOperator.prototype.resetToRecording = function() {
     var camera = this.camera;
     var lastState = camera.getStateData(this.lastState);
     var resetState = this.shotList.getFrameData() || lastState;

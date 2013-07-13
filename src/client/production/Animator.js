@@ -48,10 +48,9 @@ define(["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
 
   Animator.prototype.setCommandChannel = function(commandChannel) {
     this.commandChannel = commandChannel;
-    this.resetToScript();
   };
 
-  Animator.prototype.resetToScript = function() {
+  Animator.prototype.resetToRecording = function() {
     var lastState = this.prop.getStateData(this.lastState);
     var resetState = this.script.getFrameData() || lastState;
 
