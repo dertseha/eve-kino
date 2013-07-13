@@ -1,6 +1,6 @@
 {
   "name": "eve-kino",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A movie editor for EVE Online Machinimas.",
   "private": true,
   "author": {
@@ -8,10 +8,9 @@
     "email": "christian.haas@sevensuns.at"
   },
   "licenses": [{
-      "type": "BSD-3-Clause",
-      "url": "https://github.com/dertseha/eve-kino/blob/master/LICENSE"
-    }
-  ],
+    "type": "BSD-3-Clause",
+    "url": "https://github.com/dertseha/eve-kino/blob/master/LICENSE"
+  }],
   "homepage": "https://github.com/dertseha/eve-kino",
   "bugs": "https://github.com/dertseha/eve-kino/issues",
   "repository": {
