@@ -80,7 +80,7 @@ define(["version", "ui/UiTemplates", "util/validators/SessionValidator"],
       $scope.backgrounds = model.backgrounds;
       $scope.set = {
         type: "space",
-        selectedBackground: null, //model.backgrounds[0],
+        selectedBackground: model.backgrounds[0],
         chromaKey: {
           color: "#00FF00"
         }
@@ -102,10 +102,10 @@ define(["version", "ui/UiTemplates", "util/validators/SessionValidator"],
         var notifier = {};
 
         notifier.space = function(user) {
-          return user.createSpaceSet($scope.set.selectedBackground);
+          return user.createSpaceSet($scope.set.selectedBackground, $scope.set.sessionData);
         };
         notifier.chromaKey = function(user) {
-          return user.createChromaKeyedSet(parseColor($scope.set.chromaKey.color));
+          return user.createChromaKeyedSet(parseColor($scope.set.chromaKey.color), $scope.set.sessionData);
         };
 
         dialog.close(notifier[setType]);

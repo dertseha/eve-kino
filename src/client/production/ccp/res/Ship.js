@@ -7,10 +7,11 @@ The ship wrapper
 define(["lib/gl-matrix"], function(glMatrix) {
   "use strict";
 
-  var Ship = function(ccpwgl, obj, id) {
+  var Ship = function(ccpwgl, obj, id, propData) {
     this.ccpwgl = ccpwgl;
     this.obj = obj;
     this.id = id;
+    this.propData = propData;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();

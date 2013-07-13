@@ -228,7 +228,7 @@ define('ui/CreateSessionDialog',["version", "ui/UiTemplates", "util/validators/S
       $scope.backgrounds = model.backgrounds;
       $scope.set = {
         type: "space",
-        selectedBackground: null, //model.backgrounds[0],
+        selectedBackground: model.backgrounds[0],
         chromaKey: {
           color: "#00FF00"
         }
@@ -250,10 +250,10 @@ define('ui/CreateSessionDialog',["version", "ui/UiTemplates", "util/validators/S
         var notifier = {};
 
         notifier.space = function(user) {
-          return user.createSpaceSet($scope.set.selectedBackground);
+          return user.createSpaceSet($scope.set.selectedBackground, $scope.set.sessionData);
         };
         notifier.chromaKey = function(user) {
-          return user.createChromaKeyedSet(parseColor($scope.set.chromaKey.color));
+          return user.createChromaKeyedSet(parseColor($scope.set.chromaKey.color), $scope.set.sessionData);
         };
 
         dialog.close(notifier[setType]);
@@ -530,6 +530,27 @@ define('production/StageManager',["production/Animator"], function(Animator) {
     this.stage = stage;
 
     this.animators = [];
+  };
+
+  StageManager.prototype.encodeData = function() {
+    var data = {
+      props: []
+    };
+    var that = this;
+
+    this.stage.forEachProp(function(prop) {
+      var animator = that.findAnimatorByProp(prop);
+      var script = animator && animator.getScript();
+      var propEntry = {
+        //id: prop.id,
+        propData: prop.propData,
+        script: script ? script.data : []
+      };
+
+      data.props.push(propEntry);
+    });
+
+    return data;
   };
 
   StageManager.prototype.updateStage = function() {
@@ -1042,10 +1063,11 @@ The ship wrapper
 define('production/ccp/res/Ship',["lib/gl-matrix"], function(glMatrix) {
   
 
-  var Ship = function(ccpwgl, obj, id) {
+  var Ship = function(ccpwgl, obj, id, propData) {
     this.ccpwgl = ccpwgl;
     this.obj = obj;
     this.id = id;
+    this.propData = propData;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();
@@ -1088,18 +1110,22 @@ An archetype for ships
 define('production/ccp/res/ShipArchetype',["production/ccp/res/Ship"], function(Ship) {
   
 
-  var ShipArchetype = function() {
-    this.resourceUrl = "";
+  var ShipArchetype = function(propData) {
+    this.propData = propData;
   };
 
+  ShipArchetype.propType = "ship";
+
   ShipArchetype.prototype.request = function(ccpwgl, scene, deferred, id) {
-    return scene.loadShip(this.resourceUrl, function() {
-      deferred.resolve(new Ship(ccpwgl, this, id));
+    var propData = this.propData;
+
+    return scene.loadShip(this.propData.resourceUrl, function() {
+      deferred.resolve(new Ship(ccpwgl, this, id, propData));
     });
   };
 
   ShipArchetype.prototype.setResourceUrl = function(value) {
-    this.resourceUrl = value;
+    this.propData.resourceUrl = value;
 
     return this;
   };
@@ -1115,9 +1141,10 @@ The planet wrapper
 define('production/ccp/res/Planet',["lib/gl-matrix"], function(glMatrix) {
   
 
-  var Planet = function(obj, id) {
+  var Planet = function(obj, id, propData) {
     this.obj = obj;
     this.id = id;
+    this.propData = propData;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();
@@ -1167,46 +1194,46 @@ An archetype for planets
 define('production/ccp/res/PlanetArchetype',["production/ccp/res/Planet"], function(Planet) {
   
 
-  var PlanetArchetype = function() {
-    this.resourceUrl = "";
-    this.itemId = 0;
-    this.atmosphereUrl = null;
-    this.heightMap1Url = null;
-    this.heightMap2Url = null;
+  var PlanetArchetype = function(propData) {
+    this.propData = propData;
   };
 
-  PlanetArchetype.prototype.request = function(ccpwgl, scene, deferred, id) {
-    var obj = scene.loadPlanet(this.itemId, this.resourceUrl, this.atmosphereUrl, this.heightMap1Url, this.heightMap2Url);
+  PlanetArchetype.propType = "planet";
 
-    deferred.resolve(new Planet(obj, id));
+  PlanetArchetype.prototype.request = function(ccpwgl, scene, deferred, id) {
+    var propData = this.propData;
+    var obj = scene.loadPlanet(this.propData.itemId, this.propData.resourceUrl,
+      this.propData.atmosphereUrl, this.propData.heightMap1Url, this.propData.heightMap2Url);
+
+    deferred.resolve(new Planet(obj, id, propData));
   };
 
   PlanetArchetype.prototype.setItemId = function(value) {
-    this.itemId = value;
+    this.propData.itemId = value;
 
     return this;
   };
 
   PlanetArchetype.prototype.setResourceUrl = function(value) {
-    this.resourceUrl = value;
+    this.propData.resourceUrl = value;
 
     return this;
   };
 
   PlanetArchetype.prototype.setAtmosphereUrl = function(value) {
-    this.atmosphereUrl = value;
+    this.propData.atmosphereUrl = value;
 
     return this;
   };
 
   PlanetArchetype.prototype.setHeightMap1Url = function(value) {
-    this.heightMap1Url = value;
+    this.propData.heightMap1Url = value;
 
     return this;
   };
 
   PlanetArchetype.prototype.setHeightMap2Url = function(value) {
-    this.heightMap2Url = value;
+    this.propData.heightMap2Url = value;
 
     return this;
   };
@@ -1222,10 +1249,11 @@ The Scenery wrapper
 define('production/ccp/res/Scenery',["lib/gl-matrix"], function(glMatrix) {
   
 
-  var Scenery = function(ccpwgl, obj, id) {
+  var Scenery = function(ccpwgl, obj, id, propData) {
     this.ccpwgl = ccpwgl;
     this.obj = obj;
     this.id = id;
+    this.propData = propData;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();
@@ -1268,18 +1296,22 @@ An archetype for sceneries (generic objects that can only be placed/rotated)
 define('production/ccp/res/SceneryArchetype',["production/ccp/res/Scenery"], function(Scenery) {
   
 
-  var SceneryArchetype = function() {
-    this.resourceUrl = "";
+  var SceneryArchetype = function(propData) {
+    this.propData = propData;
   };
 
+  SceneryArchetype.propType = "scenery";
+
   SceneryArchetype.prototype.request = function(ccpwgl, scene, deferred, id) {
-    return scene.loadObject(this.resourceUrl, function() {
-      deferred.resolve(new Scenery(ccpwgl, this, id));
+    var propData = this.propData;
+
+    return scene.loadObject(this.propData.resourceUrl, function() {
+      deferred.resolve(new Scenery(ccpwgl, this, id, propData));
     });
   };
 
   SceneryArchetype.prototype.setResourceUrl = function(value) {
-    this.resourceUrl = value;
+    this.propData.resourceUrl = value;
 
     return this;
   };
@@ -1407,16 +1439,18 @@ The ApplicationController is the master controller for the app
 @module Client
 @class ApplicationController
 */
-define('ApplicationController',["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
+define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
     "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/ccp/res/SceneryArchetype",
     "production/Track", "production/Reel"
   ],
 
-  function(defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
+  function(q, defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
     
 
     var addShip = function(modelView, resourceUrl) {
-      var arch = new ShipArchetype();
+      var arch = new ShipArchetype({
+        propType: ShipArchetype.propType
+      });
 
       arch.setResourceUrl(resourceUrl);
 
@@ -1424,7 +1458,9 @@ define('ApplicationController',["Defaults", "ui/Dialogs", "production/Resources"
     };
 
     var addPlanet = function(modelView, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
-      var arch = new PlanetArchetype();
+      var arch = new PlanetArchetype({
+        propType: PlanetArchetype.propType
+      });
 
       arch.setItemId(itemId);
       arch.setResourceUrl(resourceUrl);
@@ -1436,7 +1472,9 @@ define('ApplicationController',["Defaults", "ui/Dialogs", "production/Resources"
     };
 
     var addScenery = function(modelView, resourceUrl) {
-      var arch = new SceneryArchetype();
+      var arch = new SceneryArchetype({
+        propType: SceneryArchetype.propType
+      });
 
       arch.setResourceUrl(resourceUrl);
 
@@ -1508,24 +1546,45 @@ define('ApplicationController',["Defaults", "ui/Dialogs", "production/Resources"
 
       productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
 
+      var createSession = function(creation, sessionData) {
+        var deferred = q.defer();
+        var session = {
+          set: null,
+          data: sessionData
+        };
+
+        creation.then(function(set) {
+          session.set = set;
+          deferred.resolve(session);
+        }, function(err) {
+          deferred.reject(err);
+        });
+
+        return deferred.promise;
+      };
+
       var createDialogListener = {
-        createSpaceSet: function(background) {
+        createSpaceSet: function(background, sessionData) {
+          var creation = productionManager.createSet(mainScreen, background.resourceUrl);
+
           sessionMeta.set = {
             space: {
               background: background.resourceUrl
             }
           };
 
-          return productionManager.createSet(mainScreen, background.resourceUrl);
+          return createSession(creation, sessionData);
         },
-        createChromaKeyedSet: function(color) {
+        createChromaKeyedSet: function(color, sessionData) {
+          var creation = productionManager.createChromaKeyedSet(mainScreen, color);
+
           sessionMeta.set = {
             chromaKey: {
               color: color
             }
           };
 
-          return productionManager.createChromaKeyedSet(mainScreen, color);
+          return createSession(creation, sessionData);
         }
       };
 
@@ -1541,10 +1600,10 @@ define('ApplicationController',["Defaults", "ui/Dialogs", "production/Resources"
         loadingDialog = that.showSplash("Creating set...", "Please wait.");
 
         return result(createDialogListener);
-      }).then(function(set) {
+      }).then(function(session) {
         loadingDialog.close();
         loadingDialog = null;
-        that.onSetCreated(set);
+        that.onSessionCreated(session);
         modelView.status = "Set created";
         modelView.$apply();
       }, function(err) {
@@ -1574,31 +1633,39 @@ define('ApplicationController',["Defaults", "ui/Dialogs", "production/Resources"
     ApplicationController.prototype.encodeSession = function() {
       var session = {
         ver: 0,
-        session: this.sessionMeta
+        session: this.sessionMeta,
+        stage: this.stageManager.encodeData(),
+        videography: {
+          cameras: [{
+            shotList: this.cameraOperator.getShotList().data
+          }]
+        }
       };
 
       return JSON.stringify(session);
     };
 
-    ApplicationController.prototype.addProp = function(arch) {
+    ApplicationController.prototype.addProp = function(arch, scriptData) {
       var that = this;
       var propPromise = this.set.getStage().enter(arch);
 
       propPromise.then(function(prop) {
         var radius = prop.getBoundingSphereRadius();
 
-        that.cameraOperator.placeObjectInFrontOfCamera(prop, radius);
-        that.createScriptedAnimatorForProp(prop);
+        that.createScriptedAnimatorForProp(prop, scriptData);
+
+        if (!scriptData) {
+          that.cameraOperator.placeObjectInFrontOfCamera(prop, radius);
+          that.setFocusOnProp(prop);
+        }
 
         that.modelView.stageProps.push(prop);
         that.modelView.$apply();
-
-        that.setFocusOnProp(prop);
       });
     };
 
-    ApplicationController.prototype.createScriptedAnimatorForProp = function(prop) {
-      var track = new Track([]);
+    ApplicationController.prototype.createScriptedAnimatorForProp = function(prop, scriptData) {
+      var track = new Track(scriptData || []);
       var animator = this.stageManager.getAnimator(prop);
 
       animator.setScript(track);
@@ -1636,8 +1703,9 @@ define('ApplicationController',["Defaults", "ui/Dialogs", "production/Resources"
       gamepadApi.init();
     };
 
-    ApplicationController.prototype.onSetCreated = function(set) {
+    ApplicationController.prototype.onSessionCreated = function(session) {
       var that = this;
+      var set = session.set;
 
       this.set = set;
 
@@ -1647,16 +1715,36 @@ define('ApplicationController',["Defaults", "ui/Dialogs", "production/Resources"
 
       this.camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
 
-      var shotList = new Track([]);
-      this.reel.addTrack(shotList);
+      var shotList = null;
+      if (session.data && session.data.videography) {
+        session.data.videography.cameras.forEach(function(cameraEntry) {
+          var track = new Track(cameraEntry.shotList);
+
+          that.reel.addTrack(track);
+          if (!shotList) {
+            shotList = track;
+          }
+        });
+      }
+      if (!shotList) {
+        shotList = new Track([]);
+        this.reel.addTrack(shotList);
+      }
       this.cameraOperator = new Resources.CameraOperator(set.getSceneCamera(), shotList);
       this.setFocusOnCamera();
 
       this.stageManager = new Resources.StageManager(set.getStage());
 
       this.createDefaultBindings();
-
       this.setupGamepadInput();
+
+      if (session.data) {
+        session.data.stage.props.forEach(function(propEntry) {
+          var arch = that.productionManager.getArchetypeForProp(propEntry.propData);
+
+          that.addProp(arch, propEntry.script);
+        });
+      }
 
       // TODO: The command channel must come from the prop archetype!
       this.animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
@@ -1857,6 +1945,16 @@ define('production/ccp/Stage',["lib/q"], function(q) {
   };
 
   /**
+   * Iterates through all props and passes them to a callback
+   *
+   * @method forEachProp
+   * @param {Function} callback to receive each prop in succession
+   */
+  Stage.prototype.forEachProp = function(callback) {
+    this.props.forEach(callback);
+  };
+
+  /**
    * @method enter
    * @param {Object} archetype the archetype to request
    * @return {Promise} for the creation
@@ -1992,7 +2090,25 @@ define('production/ccp/LightBoard',[], function() {
 
   return LightBoard;
 });
-/*jshint maxparams:100 */
+/**
+A list of archetypes
+
+@module Client
+@class ArchetypeList
+*/
+define('production/ccp/res/ArchetypeList',["production/ccp/res/PlanetArchetype", "production/ccp/res/SceneryArchetype", "production/ccp/res/ShipArchetype"], function() {
+  
+
+  var list = [];
+  var i;
+
+  for (i = 0; i < arguments.length; i++) {
+    list.push(arguments[i]);
+  }
+
+  return list;
+});
+/*jshint maxparams:10 */
 
 /**
 The production manager is responsible for creating a set with all necessary
@@ -2001,88 +2117,107 @@ deparments.
 @module Client
 @class ProductionManager
 */
-define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/ccp/Stage", "production/ccp/SceneCamera", "production/ccp/LightBoard"],
+define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/ccp/Stage",
+    "production/ccp/SceneCamera", "production/ccp/LightBoard", "production/ccp/res/ArchetypeList"
+  ],
 
-function(q, SyncSource, Set, Stage, SceneCamera, LightBoard) {
-  
+  function(q, SyncSource, Set, Stage, SceneCamera, LightBoard, archetypeList) {
+    
 
-  var sceneOptions = {
+    var archetypesByType = {};
 
-  };
+    archetypeList.forEach(function(Constructor) {
+      archetypesByType[Constructor.propType] = Constructor;
+    });
 
-  var onSceneCreated = function(ccpwgl, scene) {
-    var components = {
-      ccpwgl: ccpwgl,
-      scene: scene,
-      syncSource: new SyncSource(ccpwgl, scene),
-      stage: new Stage(ccpwgl, scene),
-      sceneCamera: new SceneCamera(),
-      lightBoard: new LightBoard(ccpwgl, scene)
+    var sceneOptions = {
+
     };
 
-    ccpwgl.setCamera(components.sceneCamera);
+    var onSceneCreated = function(ccpwgl, scene) {
+      var components = {
+        ccpwgl: ccpwgl,
+        scene: scene,
+        syncSource: new SyncSource(ccpwgl, scene),
+        stage: new Stage(ccpwgl, scene),
+        sceneCamera: new SceneCamera(),
+        lightBoard: new LightBoard(ccpwgl, scene)
+      };
 
-    return new Set(components);
-  };
+      ccpwgl.setCamera(components.sceneCamera);
 
-  var createSceneDeferred = function(ccpwgl, canvas, strategy) {
-    var deferred = q.defer();
-    var resolveCallback = function(scene) {
-      var set = onSceneCreated(ccpwgl, scene);
-
-      deferred.resolve(set);
+      return new Set(components);
     };
 
-    try {
-      ccpwgl.initialize(canvas, sceneOptions);
+    var createSceneDeferred = function(ccpwgl, canvas, strategy) {
+      var deferred = q.defer();
+      var resolveCallback = function(scene) {
+        var set = onSceneCreated(ccpwgl, scene);
 
-      strategy(resolveCallback);
-    } catch (ex) {
-      deferred.reject(ex);
-    }
+        deferred.resolve(set);
+      };
 
-    return deferred.promise;
-  };
+      try {
+        ccpwgl.initialize(canvas, sceneOptions);
 
-  var ProductionManager = function(ccpwgl) {
-    this.ccpwgl = ccpwgl;
-  };
+        strategy(resolveCallback);
+      } catch (ex) {
+        deferred.reject(ex);
+      }
 
-  /**
+      return deferred.promise;
+    };
+
+    var ProductionManager = function(ccpwgl) {
+      this.ccpwgl = ccpwgl;
+    };
+
+    /**
     See ccpwgl.setResourcePath()
 
     @method setResourcePath
     @param {string} namespace Resource namespace.
     @param {string} url URL to resource root. Needs to have a trailing slash.
   */
-  ProductionManager.prototype.setResourcePath = function(namespace, url) {
-    this.ccpwgl.setResourcePath(namespace, url);
-  };
+    ProductionManager.prototype.setResourcePath = function(namespace, url) {
+      this.ccpwgl.setResourcePath(namespace, url);
+    };
 
-  ProductionManager.prototype.createSet = function(canvas, backgroundUrl) {
-    var ccpwgl = this.ccpwgl;
+    ProductionManager.prototype.createSet = function(canvas, backgroundUrl) {
+      var ccpwgl = this.ccpwgl;
 
-    return createSceneDeferred(ccpwgl, canvas, function(callback) {
-      var onLoad = function() {
-        callback(this);
-      };
+      return createSceneDeferred(ccpwgl, canvas, function(callback) {
+        var onLoad = function() {
+          callback(this);
+        };
 
-      ccpwgl.loadScene(backgroundUrl, onLoad);
-    });
-  };
+        ccpwgl.loadScene(backgroundUrl, onLoad);
+      });
+    };
 
-  ProductionManager.prototype.createChromaKeyedSet = function(canvas, backgroundColor) {
-    var ccpwgl = this.ccpwgl;
+    ProductionManager.prototype.createChromaKeyedSet = function(canvas, backgroundColor) {
+      var ccpwgl = this.ccpwgl;
 
-    return createSceneDeferred(ccpwgl, canvas, function(callback) {
-      var scene = ccpwgl.createScene(backgroundColor);
+      return createSceneDeferred(ccpwgl, canvas, function(callback) {
+        var scene = ccpwgl.createScene(backgroundColor);
 
-      callback(scene);
-    });
-  };
+        callback(scene);
+      });
+    };
 
-  return ProductionManager;
-});
+    ProductionManager.prototype.getArchetypeForProp = function(propData) {
+      var Constructor = archetypesByType[propData.propType];
+      var arch = null;
+
+      if (Constructor) {
+        arch = new Constructor(propData);
+      }
+
+      return arch;
+    };
+
+    return ProductionManager;
+  });
 /* global FileReader */
 /**
 This service wraps the FileReader and transforms an evented API into a promise API.

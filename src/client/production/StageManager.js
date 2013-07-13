@@ -13,6 +13,27 @@ define(["production/Animator"], function(Animator) {
     this.animators = [];
   };
 
+  StageManager.prototype.encodeData = function() {
+    var data = {
+      props: []
+    };
+    var that = this;
+
+    this.stage.forEachProp(function(prop) {
+      var animator = that.findAnimatorByProp(prop);
+      var script = animator && animator.getScript();
+      var propEntry = {
+        //id: prop.id,
+        propData: prop.propData,
+        script: script ? script.data : []
+      };
+
+      data.props.push(propEntry);
+    });
+
+    return data;
+  };
+
   StageManager.prototype.updateStage = function() {
     this.animators.forEach(function(animator) {
       animator.update();

@@ -7,18 +7,22 @@ An archetype for sceneries (generic objects that can only be placed/rotated)
 define(["production/ccp/res/Scenery"], function(Scenery) {
   "use strict";
 
-  var SceneryArchetype = function() {
-    this.resourceUrl = "";
+  var SceneryArchetype = function(propData) {
+    this.propData = propData;
   };
 
+  SceneryArchetype.propType = "scenery";
+
   SceneryArchetype.prototype.request = function(ccpwgl, scene, deferred, id) {
-    return scene.loadObject(this.resourceUrl, function() {
-      deferred.resolve(new Scenery(ccpwgl, this, id));
+    var propData = this.propData;
+
+    return scene.loadObject(this.propData.resourceUrl, function() {
+      deferred.resolve(new Scenery(ccpwgl, this, id, propData));
     });
   };
 
   SceneryArchetype.prototype.setResourceUrl = function(value) {
-    this.resourceUrl = value;
+    this.propData.resourceUrl = value;
 
     return this;
   };

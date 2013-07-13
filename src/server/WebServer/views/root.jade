@@ -33,7 +33,7 @@ block content
           div(class="row-fluid")
             h5 New Props
           div(class="row-fluid")
-            select(class="span12", ng-model="selectedProp", ng-options="prop as prop.resourceUrl for prop in props", size="5")
+            select(class="span12", ng-model="selectedProp", ng-options="prop as prop.propData.resourceUrl for prop in props", size="5")
           div(class="row-fluid")
             button(class="span2", ng-click="addProp(selectedProp)") Add Prop
 

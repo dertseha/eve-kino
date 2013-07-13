@@ -7,9 +7,10 @@ The planet wrapper
 define(["lib/gl-matrix"], function(glMatrix) {
   "use strict";
 
-  var Planet = function(obj, id) {
+  var Planet = function(obj, id, propData) {
     this.obj = obj;
     this.id = id;
+    this.propData = propData;
 
     this.position = glMatrix.vec3.create();
     this.rotation = glMatrix.quat4.identity();

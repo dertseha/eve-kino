@@ -6,16 +6,18 @@ The ApplicationController is the master controller for the app
 @module Client
 @class ApplicationController
 */
-define(["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
+define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
     "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/ccp/res/SceneryArchetype",
     "production/Track", "production/Reel"
   ],
 
-  function(defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
+  function(q, defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
     "use strict";
 
     var addShip = function(modelView, resourceUrl) {
-      var arch = new ShipArchetype();
+      var arch = new ShipArchetype({
+        propType: ShipArchetype.propType
+      });
 
       arch.setResourceUrl(resourceUrl);
 
@@ -23,7 +25,9 @@ define(["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
     };
 
     var addPlanet = function(modelView, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
-      var arch = new PlanetArchetype();
+      var arch = new PlanetArchetype({
+        propType: PlanetArchetype.propType
+      });
 
       arch.setItemId(itemId);
       arch.setResourceUrl(resourceUrl);
@@ -35,7 +39,9 @@ define(["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
     };
 
     var addScenery = function(modelView, resourceUrl) {
-      var arch = new SceneryArchetype();
+      var arch = new SceneryArchetype({
+        propType: SceneryArchetype.propType
+      });
 
       arch.setResourceUrl(resourceUrl);
 
@@ -107,24 +113,45 @@ define(["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
 
       productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
 
+      var createSession = function(creation, sessionData) {
+        var deferred = q.defer();
+        var session = {
+          set: null,
+          data: sessionData
+        };
+
+        creation.then(function(set) {
+          session.set = set;
+          deferred.resolve(session);
+        }, function(err) {
+          deferred.reject(err);
+        });
+
+        return deferred.promise;
+      };
+
       var createDialogListener = {
-        createSpaceSet: function(background) {
+        createSpaceSet: function(background, sessionData) {
+          var creation = productionManager.createSet(mainScreen, background.resourceUrl);
+
           sessionMeta.set = {
             space: {
               background: background.resourceUrl
             }
           };
 
-          return productionManager.createSet(mainScreen, background.resourceUrl);
+          return createSession(creation, sessionData);
         },
-        createChromaKeyedSet: function(color) {
+        createChromaKeyedSet: function(color, sessionData) {
+          var creation = productionManager.createChromaKeyedSet(mainScreen, color);
+
           sessionMeta.set = {
             chromaKey: {
               color: color
             }
           };
 
-          return productionManager.createChromaKeyedSet(mainScreen, color);
+          return createSession(creation, sessionData);
         }
       };
 
@@ -140,10 +167,10 @@ define(["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
         loadingDialog = that.showSplash("Creating set...", "Please wait.");
 
         return result(createDialogListener);
-      }).then(function(set) {
+      }).then(function(session) {
         loadingDialog.close();
         loadingDialog = null;
-        that.onSetCreated(set);
+        that.onSessionCreated(session);
         modelView.status = "Set created";
         modelView.$apply();
       }, function(err) {
@@ -173,31 +200,39 @@ define(["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
     ApplicationController.prototype.encodeSession = function() {
       var session = {
         ver: 0,
-        session: this.sessionMeta
+        session: this.sessionMeta,
+        stage: this.stageManager.encodeData(),
+        videography: {
+          cameras: [{
+            shotList: this.cameraOperator.getShotList().data
+          }]
+        }
       };
 
       return JSON.stringify(session);
     };
 
-    ApplicationController.prototype.addProp = function(arch) {
+    ApplicationController.prototype.addProp = function(arch, scriptData) {
       var that = this;
       var propPromise = this.set.getStage().enter(arch);
 
       propPromise.then(function(prop) {
         var radius = prop.getBoundingSphereRadius();
 
-        that.cameraOperator.placeObjectInFrontOfCamera(prop, radius);
-        that.createScriptedAnimatorForProp(prop);
+        that.createScriptedAnimatorForProp(prop, scriptData);
+
+        if (!scriptData) {
+          that.cameraOperator.placeObjectInFrontOfCamera(prop, radius);
+          that.setFocusOnProp(prop);
+        }
 
         that.modelView.stageProps.push(prop);
         that.modelView.$apply();
-
-        that.setFocusOnProp(prop);
       });
     };
 
-    ApplicationController.prototype.createScriptedAnimatorForProp = function(prop) {
-      var track = new Track([]);
+    ApplicationController.prototype.createScriptedAnimatorForProp = function(prop, scriptData) {
+      var track = new Track(scriptData || []);
       var animator = this.stageManager.getAnimator(prop);
 
       animator.setScript(track);
@@ -235,8 +270,9 @@ define(["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
       gamepadApi.init();
     };
 
-    ApplicationController.prototype.onSetCreated = function(set) {
+    ApplicationController.prototype.onSessionCreated = function(session) {
       var that = this;
+      var set = session.set;
 
       this.set = set;
 
@@ -246,16 +282,36 @@ define(["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
 
       this.camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
 
-      var shotList = new Track([]);
-      this.reel.addTrack(shotList);
+      var shotList = null;
+      if (session.data && session.data.videography) {
+        session.data.videography.cameras.forEach(function(cameraEntry) {
+          var track = new Track(cameraEntry.shotList);
+
+          that.reel.addTrack(track);
+          if (!shotList) {
+            shotList = track;
+          }
+        });
+      }
+      if (!shotList) {
+        shotList = new Track([]);
+        this.reel.addTrack(shotList);
+      }
       this.cameraOperator = new Resources.CameraOperator(set.getSceneCamera(), shotList);
       this.setFocusOnCamera();
 
       this.stageManager = new Resources.StageManager(set.getStage());
 
       this.createDefaultBindings();
-
       this.setupGamepadInput();
+
+      if (session.data) {
+        session.data.stage.props.forEach(function(propEntry) {
+          var arch = that.productionManager.getArchetypeForProp(propEntry.propData);
+
+          that.addProp(arch, propEntry.script);
+        });
+      }
 
       // TODO: The command channel must come from the prop archetype!
       this.animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names

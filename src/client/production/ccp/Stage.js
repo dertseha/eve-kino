@@ -16,6 +16,16 @@ define(["lib/q"], function(q) {
   };
 
   /**
+   * Iterates through all props and passes them to a callback
+   *
+   * @method forEachProp
+   * @param {Function} callback to receive each prop in succession
+   */
+  Stage.prototype.forEachProp = function(callback) {
+    this.props.forEach(callback);
+  };
+
+  /**
    * @method enter
    * @param {Object} archetype the archetype to request
    * @return {Promise} for the creation
