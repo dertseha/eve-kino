@@ -19,12 +19,37 @@ define(["lib/jski"], function(jski) {
     }).required("color")
   }).required("chromaKey");
 
+  var trackSchema = jski.array(jski.object({}));
+
+  var propDataSchema = jski.object({
+    propType: jski.string()
+  }).required("propType");
+
+  var propSchema = jski.object({
+    propData: propDataSchema,
+    script: trackSchema
+  }).required("propData", "script");
+
+  var stageSchema = jski.object({
+    props: jski.array(propSchema).additionalItems(false)
+  }).required("props");
+
+  var cameraSchema = jski.object({
+    shotList: trackSchema
+  }).required("shotList");
+
+  var videographySchema = jski.object({
+    cameras: jski.array(cameraSchema).additionalItems(false)
+  }).required("cameras");
+
   var schema = jski.object({
     ver: jski.number().minimum(0),
     session: jski.object({
       set: jski.anyOf(setSpaceBackground, setChromaKeyBackground)
-    })
-  }).required("ver", "session");
+    }).required("set"),
+    stage: stageSchema,
+    videography: videographySchema
+  }).required("ver", "session", "stage", "videography");
 
   var Validator = function() {
 
