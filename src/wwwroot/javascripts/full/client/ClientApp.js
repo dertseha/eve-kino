@@ -40,7 +40,7 @@ this["UiTemplates"] = this["UiTemplates"] || {};
 
 this["UiTemplates"]["CreateSessionDialog"] = function anonymous(locals) {
 var buf = [];
-buf.push("<div class=\"modal-header\"><h3>Create a Session</h3><span>eve-kino v.{{version}}</span></div><div class=\"modal-body\"><div class=\"btn-group\"><button type=\"button\" ng-model=\"setType\" btn-radio=\"'space'\" class=\"btn\">Space</button><button type=\"button\" ng-model=\"setType\" btn-radio=\"'chromaKey'\" class=\"btn\">Chroma Key</button></div><div class=\"row-fluid\"><div ng-show=\"(setType == 'space')\">Select a background:<div class=\"row-fluid\"><select ng-model=\"selectedBackground\" ng-options=\"bg as bg.resourceUrl for bg in backgrounds\" size=\"5\" class=\"span12\"></select></div></div><div ng-show=\"(setType == 'chromaKey')\">Pick a color (RGB values):<div class=\"row-fluid\"><div class=\"span4\"><input type=\"text\" ng-model=\"chromaKey\" placeholder=\"#0044BB or #0F0\"/></div><div class=\"span4\"></div><div ng-style=\"{ 'backgroundColor': chromaKey }\" class=\"span4 container\"></div></div></div></div></div><div class=\"modal-footer\"><button ng-click=\"create(setType)\" ng-disabled=\"!canBeCreated()\" class=\"btn btn-primary\">Create</button></div>");;return buf.join("");
+buf.push("<div class=\"modal-header\"><h3>Create a Session</h3><span>eve-kino v.{{version}}</span></div><div class=\"modal-body\"><tabset><tab heading=\"Background\"><div class=\"btn-group\"><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'space'\" class=\"btn\">Space</button><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'chromaKey'\" class=\"btn\">Chroma Key</button></div><div class=\"row-fluid\"><div ng-show=\"(set.type == 'space')\">Select a background:<div class=\"row-fluid\"><select ng-model=\"set.selectedBackground\" ng-options=\"bg as bg.resourceUrl for bg in backgrounds\" size=\"5\" class=\"span12\"></select></div></div><div ng-show=\"(set.type == 'chromaKey')\">Pick a color (RGB values):<div class=\"row-fluid\"><div class=\"span4\"><input type=\"text\" ng-model=\"set.chromaKey.color\" placeholder=\"#0044BB or #0F0\"/></div><div class=\"span4\"></div><div ng-style=\"{ 'backgroundColor': set.chromaKey.color }\" class=\"span4 container\"></div></div></div></div></tab><tab heading=\"By File\"><div data-file-input=\"file\" on-change=\"readFile(file)\">Choose File</div></tab></tabset></div><div class=\"modal-footer\"><button ng-click=\"create(set.type)\" ng-disabled=\"!canBeCreated()\" class=\"btn btn-primary\">Create</button></div>");;return buf.join("");
 };
 
 this["UiTemplates"]["SplashDialog"] = function anonymous(locals) {
@@ -106,138 +106,223 @@ function(templates) {
   return dialog;
 });
 define('version',[], function() { return "0.0.3"; });
+/* global console */
+/**
+This validator handles session data
+
+@module Client
+@class SessionValidator
+*/
+define('util/validators/SessionValidator',["lib/jski"], function(jski) {
+  
+
+  var setSpaceBackground = jski.object({
+    space: jski.object({
+      background: jski.string()
+    }).required("background")
+  }).required("space");
+  var setChromaKeyBackground = jski.object({
+    chromaKey: jski.object({
+      color: jski.array(jski.number()).minItems(3).maxItems(3).additionalItems(false)
+    }).required("color")
+  }).required("chromaKey");
+
+  var schema = jski.object({
+    ver: jski.number().minimum(0),
+    session: jski.object({
+      set: jski.anyOf(setSpaceBackground, setChromaKeyBackground)
+    })
+  }).required("ver", "session");
+
+  var Validator = function() {
+
+  };
+
+  Validator.prototype.isValid = function(object) {
+    var errors = schema.validate(object);
+
+    return errors.length === 0;
+  };
+
+  return Validator;
+});
+/* global console */
 /**
 This dialog is responsible for determining the parameters of a session to be created.
 
 @module Client
 @class CreateSessionDialog
 */
-define('ui/CreateSessionDialog',["ui/UiTemplates", "version"],
+define('ui/CreateSessionDialog',["version", "ui/UiTemplates", "util/validators/SessionValidator"],
 
-function(templates, version) {
-  
+  function(version, templates, SessionValidator) {
+    
 
-  var name = "CreateSessionDialogController";
-  var template = templates.CreateSessionDialog();
+    var name = "CreateSessionDialogController";
+    var template = templates.CreateSessionDialog();
 
-  var colorStringParser = {
-    "^#([0-9A-Fa-f]){6}$": function(value) {
-      var r = parseInt(value.substr(1, 2), 16);
-      var g = parseInt(value.substr(3, 2), 16);
-      var b = parseInt(value.substr(5, 2), 16);
+    var colorStringParser = {
+      "^#([0-9A-Fa-f]){6}$": function(value) {
+        var r = parseInt(value.substr(1, 2), 16);
+        var g = parseInt(value.substr(3, 2), 16);
+        var b = parseInt(value.substr(5, 2), 16);
 
-      return [r / 255.0, g / 255.0, b / 255.0];
-    },
-    "^#([0-9A-Fa-f]){3}$": function(value) {
-      var r = parseInt(value.substr(1, 1), 16);
-      var g = parseInt(value.substr(2, 1), 16);
-      var b = parseInt(value.substr(3, 1), 16);
+        return [r / 255.0, g / 255.0, b / 255.0];
+      },
+      "^#([0-9A-Fa-f]){3}$": function(value) {
+        var r = parseInt(value.substr(1, 1), 16);
+        var g = parseInt(value.substr(2, 1), 16);
+        var b = parseInt(value.substr(3, 1), 16);
 
-      return [r / 15.0, g / 15.0, b / 15.0];
-    }
-  };
-
-  var forEachMatchingColorStringParser = function(colorString, callback) {
-    var expression;
-    var regExp;
-
-    for (expression in colorStringParser) {
-      regExp = new RegExp(expression);
-      if (regExp.test(colorString)) {
-        callback(colorStringParser[expression]);
+        return [r / 15.0, g / 15.0, b / 15.0];
       }
-    }
-  };
-
-  var parseColor = function(colorString) {
-    var result = [0, 0, 0];
-
-    forEachMatchingColorStringParser(colorString, function(parser) {
-      result = parser(colorString);
-    });
-
-    return result;
-  };
-
-  var isColorValid = function(colorString) {
-    var result = false;
-
-    forEachMatchingColorStringParser(colorString, function() {
-      result = true;
-    });
-
-    return result;
-  };
-
-  var controller = function($scope, dialog, model) {
-    $scope.version = version;
-
-    $scope.setType = "space";
-    // space set data
-    $scope.backgrounds = model.backgrounds;
-    $scope.selectedBackground = model.backgrounds[0];
-    // chromaKey set data
-    $scope.chromaKey = "#00FF00";
-
-    $scope.canBeCreated = function() {
-      var result = false;
-
-      if ($scope.setType === "space") {
-        result = !! $scope.selectedBackground;
-      } else if ($scope.setType === "chromaKey") {
-        result = isColorValid($scope.chromaKey);
-      }
-
-      return result;
     };
 
-    $scope.create = function(setType) {
-      var notifier = {};
+    var forEachMatchingColorStringParser = function(colorString, callback) {
+      var expression;
+      var regExp;
 
-      notifier.space = function(user) {
-        return user.createSpaceSet($scope.selectedBackground);
-      };
-      notifier.chromaKey = function(user) {
-        return user.createChromaKeyedSet(parseColor($scope.chromaKey));
-      };
-
-      dialog.close(notifier[setType]);
-    };
-  };
-
-  var register = function(module) {
-    module.controller(name, ["$scope", "dialog", "model", controller]);
-  };
-
-  var getBuilder = function(dialogFactory, model) {
-    var options = {
-      backdrop: true,
-      backdropFade: false,
-      backdropClick: false,
-      keyboard: false,
-
-      controller: name,
-      template: template,
-      resolve: {
-        model: function() {
-          return model;
+      for (expression in colorStringParser) {
+        regExp = new RegExp(expression);
+        if (regExp.test(colorString)) {
+          callback(colorStringParser[expression]);
         }
       }
     };
 
-    return dialogFactory.dialog(options);
-  };
+    var parseColor = function(colorString) {
+      var result = [0, 0, 0];
 
-  var dialog = {
-    controller: controller,
-    template: template,
+      forEachMatchingColorStringParser(colorString, function(parser) {
+        result = parser(colorString);
+      });
 
-    register: register,
-    getBuilder: getBuilder
-  };
+      return result;
+    };
 
-  return dialog;
-});
+    var isColorValid = function(colorString) {
+      var result = false;
+
+      forEachMatchingColorStringParser(colorString, function() {
+        result = true;
+      });
+
+      return result;
+    };
+
+    var controller = function($scope, dialog, model, fileReader) {
+      var findBackgroundByUrl = function(url) {
+        var result = null;
+
+        model.backgrounds.forEach(function(background) {
+          if (background.resourceUrl === url) {
+            result = background;
+          }
+        });
+
+        return result;
+      };
+
+      $scope.version = version;
+
+      $scope.backgrounds = model.backgrounds;
+      $scope.set = {
+        type: "space",
+        selectedBackground: null, //model.backgrounds[0],
+        chromaKey: {
+          color: "#00FF00"
+        }
+      };
+
+      $scope.canBeCreated = function() {
+        var result = false;
+
+        if ($scope.set.type === "space") {
+          result = !! $scope.set.selectedBackground;
+        } else if ($scope.set.type === "chromaKey") {
+          result = isColorValid($scope.set.chromaKey.color);
+        }
+
+        return result;
+      };
+
+      $scope.create = function(setType) {
+        var notifier = {};
+
+        notifier.space = function(user) {
+          return user.createSpaceSet($scope.set.selectedBackground);
+        };
+        notifier.chromaKey = function(user) {
+          return user.createChromaKeyedSet(parseColor($scope.set.chromaKey.color));
+        };
+
+        dialog.close(notifier[setType]);
+      };
+
+      $scope.readFile = function(file) {
+        var readPromise = fileReader.readAsText($scope, file, "utf-8");
+
+        readPromise.then(function(data) {
+          var validator = new SessionValidator();
+          var object;
+          var isValid = false;
+
+          try {
+            object = JSON.parse(data);
+            isValid = validator.isValid(object);
+          } catch (ex) {
+
+          }
+          if (isValid) {
+            $scope.set.sessionData = object;
+            if (object.session.set.space) {
+              $scope.set.type = "space";
+              $scope.set.selectedBackground = findBackgroundByUrl(object.session.set.space.background);
+            } else if (object.session.set.chromaKey) {
+              $scope.set.type = "chromaKey";
+              $scope.set.chromaKey.color = "#";
+              object.session.set.chromaKey.color.forEach(function(part) {
+                $scope.set.chromaKey.color += ("0" + (part * 255.0).toString(16)).substr(-2);
+              });
+            }
+          }
+        });
+      };
+    };
+
+    var register = function(module) {
+      module.controller(name, ["$scope", "dialog", "model", "fileReader", controller]);
+    };
+
+    var getBuilder = function(dialogFactory, model) {
+      var options = {
+        backdrop: true,
+        backdropFade: false,
+        backdropClick: false,
+        keyboard: false,
+
+        controller: name,
+        template: template,
+        resolve: {
+          model: function() {
+            return model;
+          }
+        }
+      };
+
+      return dialogFactory.dialog(options);
+    };
+
+    var dialog = {
+      controller: controller,
+      template: template,
+
+      register: register,
+      getBuilder: getBuilder
+    };
+
+    return dialog;
+  });
 /**
 This is a helper object to collect all dialogs
 
@@ -1325,350 +1410,368 @@ The ApplicationController is the master controller for the app
 define('ApplicationController',["Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
     "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/ccp/res/SceneryArchetype",
     "production/Track", "production/Reel"
-],
+  ],
 
-function(defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
-  
+  function(defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
+    
 
-  var addShip = function(modelView, resourceUrl) {
-    var arch = new ShipArchetype();
+    var addShip = function(modelView, resourceUrl) {
+      var arch = new ShipArchetype();
 
-    arch.setResourceUrl(resourceUrl);
+      arch.setResourceUrl(resourceUrl);
 
-    modelView.props.push(arch);
-  };
-
-  var addPlanet = function(modelView, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
-    var arch = new PlanetArchetype();
-
-    arch.setItemId(itemId);
-    arch.setResourceUrl(resourceUrl);
-    arch.setAtmosphereUrl(atmosphereUrl);
-    arch.setHeightMap1Url(heightMap1Url);
-    arch.setHeightMap2Url(heightMap2Url);
-
-    modelView.props.push(arch);
-  };
-
-  var addScenery = function(modelView, resourceUrl) {
-    var arch = new SceneryArchetype();
-
-    arch.setResourceUrl(resourceUrl);
-
-    modelView.props.push(arch);
-  };
-
-  var initModelView = function(modelView, controller, config) {
-    modelView.status = "Initializing...";
-    modelView.record = function() {
-      controller.record();
-    };
-    modelView.stop = function() {
-      controller.stop();
-    };
-    modelView.play = function() {
-      controller.play();
-    };
-    modelView.addProp = function(arch) {
-      controller.addProp(arch);
-    };
-    modelView.setFocusOnCamera = function() {
-      controller.setFocusOnCamera();
-    };
-    modelView.setFocusOnProp = function(prop) {
-      controller.setFocusOnProp(prop);
+      modelView.props.push(arch);
     };
 
-    modelView.encodeSession = function() {
-      return controller.encodeSession();
+    var addPlanet = function(modelView, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
+      var arch = new PlanetArchetype();
+
+      arch.setItemId(itemId);
+      arch.setResourceUrl(resourceUrl);
+      arch.setAtmosphereUrl(atmosphereUrl);
+      arch.setHeightMap1Url(heightMap1Url);
+      arch.setHeightMap2Url(heightMap2Url);
+
+      modelView.props.push(arch);
     };
 
-    modelView.stageProps = [];
+    var addScenery = function(modelView, resourceUrl) {
+      var arch = new SceneryArchetype();
 
-    modelView.props = [];
+      arch.setResourceUrl(resourceUrl);
 
-    addShip(modelView, "res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
-    addShip(modelView, "res:/dx9/model/ship/gallente/Cruiser/GC3/CreoDron/GC3_T2_CreoDron.red");
-    addShip(modelView, "res:/dx9/model/ship/amarr/at1/at1.red");
-    addShip(modelView, "res:/dx9/model/ship/jove/capsule/capsule.red");
-
-    addPlanet(modelView, 40000002,
-      "res:/dx9/model/WorldObject/Planet/Template/Terrestrial/P_Terrestrial_61.red",
-      undefined,
-      "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial03_H.png",
-      "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial04_H.png");
-    addPlanet(modelView, 40000100,
-      "res:/dx9/model/WorldObject/Planet/Template/Gas/P_GasGiant_12.red",
-      undefined,
-      "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png",
-      "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
-
-    addScenery(modelView, "res:/dx9/Model/station/gallente/gs2/gs2.red");
-    addScenery(modelView, "res:/dx9/model/jumpgate/amarr/abg.red");
-    addScenery(modelView, "res:/dx9/model/worldobject/asteroid/zuthrine/shards/zuthrine_shard01_unmined.red");
-  };
-
-  var ApplicationController = function(modelView, dialogFactory, config, productionManager, mainScreen) {
-    var that = this;
-
-    this.productionManager = productionManager;
-    this.modelView = modelView;
-    this.dialogFactory = dialogFactory;
-
-    initModelView(modelView, this, config);
-
-    productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
-
-    var createDialogListener = {
-      createSpaceSet: function(background) {
-        return productionManager.createSet(mainScreen, background.resourceUrl);
-      },
-      createChromaKeyedSet: function(color) {
-        return productionManager.createChromaKeyedSet(mainScreen, color);
-      }
+      modelView.props.push(arch);
     };
 
-    var dialogParams = {
-      backgrounds: [{
-          resourceUrl: "res:/dx9/scene/universe/a01_cube.red"
+    var initModelView = function(modelView, controller, config) {
+      modelView.status = "Initializing...";
+      modelView.record = function() {
+        controller.record();
+      };
+      modelView.stop = function() {
+        controller.stop();
+      };
+      modelView.play = function() {
+        controller.play();
+      };
+      modelView.addProp = function(arch) {
+        controller.addProp(arch);
+      };
+      modelView.setFocusOnCamera = function() {
+        controller.setFocusOnCamera();
+      };
+      modelView.setFocusOnProp = function(prop) {
+        controller.setFocusOnProp(prop);
+      };
+
+      modelView.encodeSession = function() {
+        return controller.encodeSession();
+      };
+
+      modelView.stageProps = [];
+
+      modelView.props = [];
+
+      addShip(modelView, "res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
+      addShip(modelView, "res:/dx9/model/ship/gallente/Cruiser/GC3/CreoDron/GC3_T2_CreoDron.red");
+      addShip(modelView, "res:/dx9/model/ship/amarr/at1/at1.red");
+      addShip(modelView, "res:/dx9/model/ship/jove/capsule/capsule.red");
+
+      addPlanet(modelView, 40000002,
+        "res:/dx9/model/WorldObject/Planet/Template/Terrestrial/P_Terrestrial_61.red",
+        undefined,
+        "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial03_H.png",
+        "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial04_H.png");
+      addPlanet(modelView, 40000100,
+        "res:/dx9/model/WorldObject/Planet/Template/Gas/P_GasGiant_12.red",
+        undefined,
+        "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png",
+        "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
+
+      addScenery(modelView, "res:/dx9/Model/station/gallente/gs2/gs2.red");
+      addScenery(modelView, "res:/dx9/model/jumpgate/amarr/abg.red");
+      addScenery(modelView, "res:/dx9/model/worldobject/asteroid/zuthrine/shards/zuthrine_shard01_unmined.red");
+    };
+
+    var ApplicationController = function(modelView, dialogFactory, config, productionManager, mainScreen) {
+      var that = this;
+      var sessionMeta = {
+        set: {}
+      };
+
+      this.productionManager = productionManager;
+      this.modelView = modelView;
+      this.dialogFactory = dialogFactory;
+      this.sessionMeta = sessionMeta;
+
+      initModelView(modelView, this, config);
+
+      productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
+
+      var createDialogListener = {
+        createSpaceSet: function(background) {
+          sessionMeta.set = {
+            space: {
+              background: background.resourceUrl
+            }
+          };
+
+          return productionManager.createSet(mainScreen, background.resourceUrl);
+        },
+        createChromaKeyedSet: function(color) {
+          sessionMeta.set = {
+            chromaKey: {
+              color: color
+            }
+          };
+
+          return productionManager.createChromaKeyedSet(mainScreen, color);
         }
-      ]
-    };
-    var dialogTemplate = uiDialogs.createSessionDialog.getBuilder(this.dialogFactory, dialogParams);
-    var loadingDialog = null;
+      };
 
-    dialogTemplate.open().then(function(result) {
-      loadingDialog = that.showSplash("Creating set...", "Please wait.");
+      var dialogParams = {
+        backgrounds: [{
+          resourceUrl: "res:/dx9/scene/universe/a01_cube.red"
+        }]
+      };
+      var dialogTemplate = uiDialogs.createSessionDialog.getBuilder(this.dialogFactory, dialogParams);
+      var loadingDialog = null;
 
-      return result(createDialogListener);
-    }).then(function(set) {
-      loadingDialog.close();
-      loadingDialog = null;
-      that.onSetCreated(set);
-      modelView.status = "Set created";
-      modelView.$apply();
-    }, function(err) {
-      var reason = (err && (err.message || err)) || "Unknown reason. That's bad.";
+      dialogTemplate.open().then(function(result) {
+        loadingDialog = that.showSplash("Creating set...", "Please wait.");
 
-      loadingDialog.close();
-      loadingDialog = null;
-      that.showSplash("Failed to create a set. Try Reloading.", reason);
-    });
-  };
+        return result(createDialogListener);
+      }).then(function(set) {
+        loadingDialog.close();
+        loadingDialog = null;
+        that.onSetCreated(set);
+        modelView.status = "Set created";
+        modelView.$apply();
+      }, function(err) {
+        var reason = (err && (err.message || err)) || "Unknown reason. That's bad.";
 
-  ApplicationController.prototype.showSplash = function(title, message) {
-    var params = {
-      title: title,
-      message: message
-    };
-    var dialog = uiDialogs.splashDialog.getBuilder(this.dialogFactory, params);
-    var result = dialog.open();
-
-    if (!this.modelView.$$phase) {
-      this.modelView.$apply();
-    }
-
-    return dialog;
-  };
-
-  ApplicationController.prototype.encodeSession = function() {
-    var session = {};
-
-    return JSON.stringify(session);
-  };
-
-  ApplicationController.prototype.addProp = function(arch) {
-    var that = this;
-    var propPromise = this.set.getStage().enter(arch);
-
-    propPromise.then(function(prop) {
-      var radius = prop.getBoundingSphereRadius();
-
-      that.cameraOperator.placeObjectInFrontOfCamera(prop, radius);
-      that.createScriptedAnimatorForProp(prop);
-
-      that.modelView.stageProps.push(prop);
-      that.modelView.$apply();
-
-      that.setFocusOnProp(prop);
-    });
-  };
-
-  ApplicationController.prototype.createScriptedAnimatorForProp = function(prop) {
-    var track = new Track([]);
-    var animator = this.stageManager.getAnimator(prop);
-
-    animator.setScript(track);
-    this.reel.addTrack(track);
-  };
-
-  ApplicationController.prototype.createDefaultBindings = function() {
-    for (var actionName in defaults.inputsByAction) {
-      this.director.addBinding({
-        actionName: actionName
-      }, {
-        inputName: defaults.inputsByAction[actionName]
+        loadingDialog.close();
+        loadingDialog = null;
+        that.showSplash("Failed to create a set. Try Reloading.", reason);
       });
-    }
-  };
+    };
 
-  ApplicationController.prototype.setupGamepadInput = function() {
-    var gamepadInput = this.director.getInputChannel("gamepad");
+    ApplicationController.prototype.showSplash = function(title, message) {
+      var params = {
+        title: title,
+        message: message
+      };
+      var dialog = uiDialogs.splashDialog.getBuilder(this.dialogFactory, params);
+      var result = dialog.open();
 
-    var gamepadListener = {
-      onGamepadDisconnected: function() {},
-      onControlValueChanged: function(controlName, value) {
-        gamepadInput.setIntensity(controlName, value);
+      if (!this.modelView.$$phase) {
+        this.modelView.$apply();
+      }
+
+      return dialog;
+    };
+
+    ApplicationController.prototype.encodeSession = function() {
+      var session = {
+        ver: 0,
+        session: this.sessionMeta
+      };
+
+      return JSON.stringify(session);
+    };
+
+    ApplicationController.prototype.addProp = function(arch) {
+      var that = this;
+      var propPromise = this.set.getStage().enter(arch);
+
+      propPromise.then(function(prop) {
+        var radius = prop.getBoundingSphereRadius();
+
+        that.cameraOperator.placeObjectInFrontOfCamera(prop, radius);
+        that.createScriptedAnimatorForProp(prop);
+
+        that.modelView.stageProps.push(prop);
+        that.modelView.$apply();
+
+        that.setFocusOnProp(prop);
+      });
+    };
+
+    ApplicationController.prototype.createScriptedAnimatorForProp = function(prop) {
+      var track = new Track([]);
+      var animator = this.stageManager.getAnimator(prop);
+
+      animator.setScript(track);
+      this.reel.addTrack(track);
+    };
+
+    ApplicationController.prototype.createDefaultBindings = function() {
+      for (var actionName in defaults.inputsByAction) {
+        this.director.addBinding({
+          actionName: actionName
+        }, {
+          inputName: defaults.inputsByAction[actionName]
+        });
       }
     };
 
-    var gamepadApi = new GamepadApi();
-    gamepadApi.addGamepadListener({
-      onGamepadConnected: function(gamepad) {
-        gamepad.addListener(gamepadListener);
-      },
-      onGamepadDisconnected: function() {}
-    });
+    ApplicationController.prototype.setupGamepadInput = function() {
+      var gamepadInput = this.director.getInputChannel("gamepad");
 
-    gamepadApi.init();
-  };
+      var gamepadListener = {
+        onGamepadDisconnected: function() {},
+        onControlValueChanged: function(controlName, value) {
+          gamepadInput.setIntensity(controlName, value);
+        }
+      };
 
-  ApplicationController.prototype.onSetCreated = function(set) {
-    var that = this;
+      var gamepadApi = new GamepadApi();
+      gamepadApi.addGamepadListener({
+        onGamepadConnected: function(gamepad) {
+          gamepad.addListener(gamepadListener);
+        },
+        onGamepadDisconnected: function() {}
+      });
 
-    this.set = set;
+      gamepadApi.init();
+    };
 
-    this.director = new Resources.Director();
-    this.reel = new Reel();
-    this.stopReelTransmission();
+    ApplicationController.prototype.onSetCreated = function(set) {
+      var that = this;
 
-    this.camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
+      this.set = set;
 
-    var shotList = new Track([]);
-    this.reel.addTrack(shotList);
-    this.cameraOperator = new Resources.CameraOperator(set.getSceneCamera(), shotList);
-    this.setFocusOnCamera();
+      this.director = new Resources.Director();
+      this.reel = new Reel();
+      this.stopReelTransmission();
 
-    this.stageManager = new Resources.StageManager(set.getStage());
+      this.camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
 
-    this.createDefaultBindings();
+      var shotList = new Track([]);
+      this.reel.addTrack(shotList);
+      this.cameraOperator = new Resources.CameraOperator(set.getSceneCamera(), shotList);
+      this.setFocusOnCamera();
 
-    this.setupGamepadInput();
+      this.stageManager = new Resources.StageManager(set.getStage());
 
-    // TODO: The command channel must come from the prop archetype!
-    this.animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
+      this.createDefaultBindings();
 
-    set.getSyncSource().setCallback(function() {
-      // TODO: move this to some general time keeper
+      this.setupGamepadInput();
 
-      that.stageManager.updateStage();
-      that.cameraOperator.updateCamera();
+      // TODO: The command channel must come from the prop archetype!
+      this.animCommands = that.director.getCommandChannel("animator", Resources.CameraOperator.getActionNames()); // TODO: proper action names
 
-      that.reelTransmission.update();
-    });
+      set.getSyncSource().setCallback(function() {
+        // TODO: move this to some general time keeper
 
-  };
+        that.stageManager.updateStage();
+        that.cameraOperator.updateCamera();
 
-  ApplicationController.prototype.clearFocus = function() {
-    if (this.focusTarget) {
-      this.focusTarget.setCommandChannel(null);
-      this.focusTarget = null;
-      this.focusTrack.setRecording(false);
-      this.focusTrack = null;
-      this.focusCommandChannel = null;
+        that.reelTransmission.update();
+      });
 
-      this.modelView.selectedFocus = null;
+    };
+
+    ApplicationController.prototype.clearFocus = function() {
+      if (this.focusTarget) {
+        this.focusTarget.setCommandChannel(null);
+        this.focusTarget = null;
+        this.focusTrack.setRecording(false);
+        this.focusTrack = null;
+        this.focusCommandChannel = null;
+
+        this.modelView.selectedFocus = null;
+        this.modelView.$apply();
+      }
+    };
+
+    ApplicationController.prototype.setFocusOnCamera = function() {
+      this.clearFocus();
+      this.focusTarget = this.cameraOperator;
+      this.focusTrack = this.cameraOperator.getShotList();
+      this.focusCommandChannel = this.camCommands;
+
+      this.cameraOperator.setChaseObject(null);
+      this.focusTarget.setCommandChannel(this.focusCommandChannel);
+    };
+
+    ApplicationController.prototype.setFocusOnProp = function(prop) {
+      this.clearFocus();
+      this.focusTarget = this.stageManager.getAnimator(prop);
+      this.focusTrack = this.focusTarget.getScript();
+      this.focusCommandChannel = this.animCommands;
+
+      this.cameraOperator.setChaseObject(prop);
+      this.focusTarget.setCommandChannel(this.focusCommandChannel);
+
+      this.modelView.selectedFocus = prop;
       this.modelView.$apply();
-    }
-  };
+    };
 
-  ApplicationController.prototype.setFocusOnCamera = function() {
-    this.clearFocus();
-    this.focusTarget = this.cameraOperator;
-    this.focusTrack = this.cameraOperator.getShotList();
-    this.focusCommandChannel = this.camCommands;
+    ApplicationController.prototype.record = function() {
+      this.startReelTransmission();
+      this.reel.skipTo(0);
 
-    this.cameraOperator.setChaseObject(null);
-    this.focusTarget.setCommandChannel(this.focusCommandChannel);
-  };
-
-  ApplicationController.prototype.setFocusOnProp = function(prop) {
-    this.clearFocus();
-    this.focusTarget = this.stageManager.getAnimator(prop);
-    this.focusTrack = this.focusTarget.getScript();
-    this.focusCommandChannel = this.animCommands;
-
-    this.cameraOperator.setChaseObject(prop);
-    this.focusTarget.setCommandChannel(this.focusCommandChannel);
-
-    this.modelView.selectedFocus = prop;
-    this.modelView.$apply();
-  };
-
-  ApplicationController.prototype.record = function() {
-    this.startReelTransmission();
-    this.reel.skipTo(0);
-
-    if (this.focusTarget) {
-      this.focusTarget.setCommandChannel(this.focusCommandChannel);
-      this.focusTrack.setRecording(true);
-    }
-  };
-
-  ApplicationController.prototype.stop = function() {
-    this.stopReelTransmission();
-    this.reel.skipTo(0);
-
-    if (this.focusTarget) {
-      this.focusTarget.setCommandChannel(this.focusCommandChannel);
-      this.focusTrack.setRecording(false);
-    }
-  };
-
-  ApplicationController.prototype.play = function() {
-    this.startReelTransmission();
-    this.reel.skipTo(0);
-
-    if (this.focusTarget) {
-      this.focusTarget.setCommandChannel(null);
-      this.focusTrack.setRecording(false);
-    }
-  };
-
-  ApplicationController.prototype.startReelTransmission = function() {
-    var reel = this.reel;
-
-    this.reelTransmission = {
-      update: function() {
-        reel.nextFrame();
+      if (this.focusTarget) {
+        this.focusTarget.setCommandChannel(this.focusCommandChannel);
+        this.focusTrack.setRecording(true);
       }
     };
-  };
 
-  ApplicationController.prototype.stopReelTransmission = function() {
-    this.reelTransmission = {
-      update: function() {}
+    ApplicationController.prototype.stop = function() {
+      this.stopReelTransmission();
+      this.reel.skipTo(0);
+
+      if (this.focusTarget) {
+        this.focusTarget.setCommandChannel(this.focusCommandChannel);
+        this.focusTrack.setRecording(false);
+      }
     };
-  };
 
-  /**
+    ApplicationController.prototype.play = function() {
+      this.startReelTransmission();
+      this.reel.skipTo(0);
+
+      if (this.focusTarget) {
+        this.focusTarget.setCommandChannel(null);
+        this.focusTrack.setRecording(false);
+      }
+    };
+
+    ApplicationController.prototype.startReelTransmission = function() {
+      var reel = this.reel;
+
+      this.reelTransmission = {
+        update: function() {
+          reel.nextFrame();
+        }
+      };
+    };
+
+    ApplicationController.prototype.stopReelTransmission = function() {
+      this.reelTransmission = {
+        update: function() {}
+      };
+    };
+
+    /**
     Creates a controller function
 
     @method create
     @param config {Object} the configuration to use
     @return {Function} Controller function
   */
-  var create = function(config, productionManager, mainScreen) {
-    return function($scope, $dialog) {
-      return new ApplicationController($scope, $dialog, config, productionManager, mainScreen);
+    var create = function(config, productionManager, mainScreen) {
+      return function($scope, $dialog) {
+        return new ApplicationController($scope, $dialog, config, productionManager, mainScreen);
+      };
     };
-  };
 
-  return {
-    ApplicationController: ApplicationController,
-    create: create
-  };
-});
+    return {
+      ApplicationController: ApplicationController,
+      create: create
+    };
+  });
 /**
 The sync source provides a callback mechanism for black-burst synchronization.
 
@@ -1980,6 +2083,88 @@ function(q, SyncSource, Set, Stage, SceneCamera, LightBoard) {
 
   return ProductionManager;
 });
+/* global FileReader */
+/**
+This service wraps the FileReader and transforms an evented API into a promise API.
+
+Source: http://odetocode.com/blogs/scott/archive/2013/07/03/building-a-filereader-service-for-angularjs-the-service.aspx
+
+@module Client
+@class FileInputDirective
+*/
+define('services/FileReaderService',[], function() {
+  
+
+  var fileReader = function($q) {
+
+    var onLoad = function(scope, deferred, reader) {
+      return function() {
+        scope.$apply(function() {
+          deferred.resolve(reader.result);
+        });
+      };
+    };
+
+    var onError = function(scope, deferred, reader) {
+      return function() {
+        scope.$apply(function() {
+          deferred.reject(reader.result);
+        });
+      };
+    };
+
+    var getReader = function(scope, deferred) {
+      var reader = new FileReader();
+
+      reader.onload = onLoad(scope, deferred, reader);
+      reader.onerror = onError(scope, deferred, reader);
+
+      return reader;
+    };
+
+    var readAsText = function(scope, file, encoding) {
+      var deferred = $q.defer();
+      var reader = getReader(scope, deferred);
+
+      reader.readAsText(file, encoding);
+
+      return deferred.promise;
+    };
+
+    return {
+      readAsText: readAsText
+    };
+  };
+
+  var register = function(angular, appModule) {
+    appModule.factory("fileReader", ["$q", fileReader]);
+  };
+
+  var service = {
+    register: register
+  };
+
+  return service;
+});
+/**
+The Service list collects all services
+
+@module Client
+@class DirectiveList
+*/
+define('services/ServiceList',["services/FileReaderService"],
+  function() {
+    
+
+    var directives = [];
+    var i;
+
+    for (i = 0; i < arguments.length; i++) {
+      directives.push(arguments[i]);
+    }
+
+    return directives;
+  });
 /**
 The Controller list collects all controller modules
 
@@ -2154,12 +2339,51 @@ define('directives/SaveAsDirective',["util/BrowserHelper"], function(browserHelp
   return directive;
 });
 /**
+The data-file-input directive is for adding a change event to a file input.
+
+@module Client
+@class FileInputDirective
+*/
+define('directives/FileInputDirective',[], function() {
+  
+
+  var register = function(angular, appModule) {
+    appModule.directive("fileInput", function($parse) {
+      return {
+        restrict: "EA",
+        template: "<input type=\"file\" />",
+        replace: true,
+        link: function(scope, element, attrs) {
+          var modelGet = $parse(attrs.fileInput || attrs.dataFileInpu);
+          var modelSet = modelGet.assign;
+          var onChange = $parse(attrs.onChange);
+
+          var updateModel = function() {
+            scope.$apply(function() {
+              modelSet(scope, element[0].files[0]);
+              onChange(scope);
+            });
+          };
+
+          element.bind("change", updateModel);
+        }
+      };
+    });
+  };
+
+  var directive = {
+    register: register
+  };
+
+  return directive;
+});
+/**
 The Directive list collects all directives
 
 @module Client
 @class DirectiveList
 */
-define('directives/DirectiveList',["directives/FilmViewDirective", "directives/SaveAsDirective"],
+define('directives/DirectiveList',["directives/FilmViewDirective", "directives/SaveAsDirective", "directives/FileInputDirective"],
 
 function() {
   
@@ -2180,60 +2404,33 @@ ClientApp is the primary entry point for the main client side application
 @module Client
 @class ClientApp
 */
-define('ClientApp',["module", "angular", "lib/ccpwgl", "ApplicationController", "production/ccp/ProductionManager", "ui/ControllerList", "directives/DirectiveList"],
+define('ClientApp',["module", "angular", "lib/ccpwgl", "ApplicationController", "production/ccp/ProductionManager", "services/ServiceList", "ui/ControllerList", "directives/DirectiveList"],
 
-function(module, angular, ccpwgl, appController, ProductionManager, controllerList, directiveList) {
-  
+  function(module, angular, ccpwgl, appController, ProductionManager, serviceList, controllerList, directiveList) {
+    
 
-  var config = module.config();
+    var config = module.config();
 
-  var main = function(mainScreen) {
-    var appModule = angular.module("ClientApp", ["ui.bootstrap"]);
-    var productionManager = new ProductionManager(ccpwgl);
+    var main = function(mainScreen) {
+      var appModule = angular.module("ClientApp", ["ui.bootstrap"]);
+      var productionManager = new ProductionManager(ccpwgl);
 
-    appModule.controller("ApplicationController", ["$scope", "$dialog", appController.create(config, productionManager, mainScreen)]);
+      appModule.controller("ApplicationController", ["$scope", "$dialog", appController.create(config, productionManager, mainScreen)]);
 
-    directiveList.forEach(function(directive) {
-      directive.register(angular, appModule);
-    });
+      serviceList.forEach(function(service) {
+        service.register(angular, appModule);
+      });
 
-    // appModule.directive("saveAs", function($window) {
-    //   return function(scope, element, attrs) {
-    //     var rawElement = element[0];
-    //     var url = $window.URL;
+      directiveList.forEach(function(directive) {
+        directive.register(angular, appModule);
+      });
 
-    //     if (!url) {
-    //       url = browserHelper.findPrefixProperty($window, "URL", {
-    //         createObjectURL: function() {
-    //           return "#";
-    //         }
-    //       });
-    //     }
+      controllerList.forEach(function(controller) {
+        controller.register(appModule);
+      });
 
-    //     rawElement.target = "_blank";
-    //     rawElement.download = "session.json";
-    //     element.bind("click", function(event) {
-    //       rawElement.href = "#";
-    //     });
+      return [appModule.name];
+    };
 
-    //     element.bind("click", function() {
-    //       var textToWrite = scope.encodeSession();
-    //       var textFileAsBlob = new Blob([textToWrite], {
-    //         type: "application/json;charset=utf-8"
-    //       });
-
-    //       rawElement.href = url.createObjectURL(textFileAsBlob);
-    //     });
-
-    //   };
-    // });
-
-    controllerList.forEach(function(controller) {
-      controller.register(appModule);
-    });
-
-    return [appModule.name];
-  };
-
-  return main;
-});
+    return main;
+  });

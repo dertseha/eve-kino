@@ -4,7 +4,7 @@ The Directive list collects all directives
 @module Client
 @class DirectiveList
 */
-define(["directives/FilmViewDirective", "directives/SaveAsDirective"],
+define(["directives/FilmViewDirective", "directives/SaveAsDirective", "directives/FileInputDirective"],
 
 function() {
   "use strict";

@@ -19,6 +19,7 @@ Supported browsers are:
 * ccpwgl https://github.com/ccpgames/ccpwgl
 * gamepad https://github.com/kallaspriit/HTML5-JavaScript-Gamepad-Controller-Library
 * Q 0.9.6
+* jski https://github.com/skoni/jski (via browserify)
 
 ## License
 

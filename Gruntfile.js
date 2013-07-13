@@ -56,10 +56,9 @@ module.exports = function(grunt) {
           baseUrl: "src/client",
 
           modules: [{
-              name: "ClientApp",
-              exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js"]
-            }
-          ],
+            name: "ClientApp",
+            exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js", "lib/jski.js"]
+          }],
           paths: {
             jade: "lib/jade"
           },
@@ -76,10 +75,9 @@ module.exports = function(grunt) {
           baseUrl: "src/client",
 
           modules: [{
-              name: "ClientApp",
-              exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js"]
-            }
-          ],
+            name: "ClientApp",
+            exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js", "lib/jski.js"]
+          }],
           paths: {
             jade: "lib/jade"
           },
@@ -98,13 +96,12 @@ module.exports = function(grunt) {
     copy: {
       client: {
         files: [{
-            src: "build/client/full/ClientApp.js",
-            dest: "src/wwwroot/javascripts/full/client/ClientApp.js"
-          }, {
-            src: "build/client/min/ClientApp.js",
-            dest: "src/wwwroot/javascripts/min/client/ClientApp.js"
-          }
-        ]
+          src: "build/client/full/ClientApp.js",
+          dest: "src/wwwroot/javascripts/full/client/ClientApp.js"
+        }, {
+          src: "build/client/min/ClientApp.js",
+          dest: "src/wwwroot/javascripts/min/client/ClientApp.js"
+        }]
       }
     },
 

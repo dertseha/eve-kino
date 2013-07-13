@@ -3,21 +3,26 @@ div(class="modal-header")
   span eve-kino v.{{version}}
 
 div(class="modal-body")
-  div(class="btn-group")
-    button(type="button", class="btn", ng-model="setType", btn-radio="'space'") Space
-    button(type="button", class="btn", ng-model="setType", btn-radio="'chromaKey'") Chroma Key
+  tabset
+    tab(heading="Background")
+      div(class="btn-group")
+        button(type="button", class="btn", ng-model="set.type", btn-radio="'space'") Space
+        button(type="button", class="btn", ng-model="set.type", btn-radio="'chromaKey'") Chroma Key
 
-  div(class="row-fluid")
-    div(ng-show="(setType == 'space')") Select a background:
       div(class="row-fluid")
-        select(class="span12", ng-model="selectedBackground", ng-options="bg as bg.resourceUrl for bg in backgrounds", size="5")
+        div(ng-show="(set.type == 'space')") Select a background:
+          div(class="row-fluid")
+            select(class="span12", ng-model="set.selectedBackground", ng-options="bg as bg.resourceUrl for bg in backgrounds", size="5")
 
-    div(ng-show="(setType == 'chromaKey')") Pick a color (RGB values):
-      div(class="row-fluid")
-        div(class="span4")
-          input(type="text", ng-model="chromaKey", placeholder="#0044BB or #0F0")
-        div(class="span4")
-        div(class="span4 container", ng-style="{ 'backgroundColor': chromaKey }")
+        div(ng-show="(set.type == 'chromaKey')") Pick a color (RGB values):
+          div(class="row-fluid")
+            div(class="span4")
+              input(type="text", ng-model="set.chromaKey.color", placeholder="#0044BB or #0F0")
+            div(class="span4")
+            div(class="span4 container", ng-style="{ 'backgroundColor': set.chromaKey.color }")
+
+    tab(heading="By File")
+      div(data-file-input="file", on-change="readFile(file)") Choose File
 
 div(class="modal-footer")
-  button(ng-click="create(setType)", class="btn btn-primary", ng-disabled="!canBeCreated()") Create
+  button(ng-click="create(set.type)", class="btn btn-primary", ng-disabled="!canBeCreated()") Create

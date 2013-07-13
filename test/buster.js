@@ -59,9 +59,11 @@ config["Client tests raw"] = {
   rootPath: "../",
   environment: "browser",
   libs: ["src/wwwroot/javascripts/min/lib/require.js", "test/client/requireConfigRaw.js",
-      "test/client/stubs/*.js"
+    "test/client/stubs/*.js"
   ],
-  sources: ["src/client/**/*.js", "src/wwwroot/javascripts/full/lib/gl-matrix.js", "src/wwwroot/javascripts/full/lib/q.js"],
+  sources: ["src/client/**/*.js", "src/wwwroot/javascripts/full/lib/gl-matrix.js",
+    "src/wwwroot/javascripts/full/lib/q.js", "src/wwwroot/javascripts/full/lib/jski.js"
+  ],
   tests: ["test/client/**/*Test.js"],
 
   extensions: [require("buster-amd")],
@@ -82,9 +84,11 @@ config["Client tests coverage"] = {
   rootPath: "../",
   environment: "browser",
   libs: ["src/wwwroot/javascripts/min/lib/require.js", "test/client/requireConfigRaw.js",
-      "test/client/stubs/*.js"
+    "test/client/stubs/*.js"
   ],
-  sources: ["src/client/**/*.js", "src/wwwroot/javascripts/full/lib/gl-matrix.js", "src/wwwroot/javascripts/full/lib/q.js"],
+  sources: ["src/client/**/*.js", "src/wwwroot/javascripts/full/lib/gl-matrix.js",
+    "src/wwwroot/javascripts/full/lib/q.js", "src/wwwroot/javascripts/full/lib/jski.js"
+  ],
   tests: ["test/client/**/*Test.js"],
 
   extensions: [require("buster-istanbul"), require("buster-amd")],
@@ -108,9 +112,11 @@ config["Client tests minified"] = {
   rootPath: "../",
   environment: "browser",
   libs: ["src/wwwroot/javascripts/min/lib/require.js", "test/client/requireConfigMin.js",
-      "test/client/stubs/*.js", "src/wwwroot/javascripts/min/client/ClientApp.js"
+    "test/client/stubs/*.js", "src/wwwroot/javascripts/min/client/ClientApp.js"
   ],
-  sources: ["src/wwwroot/javascripts/min/lib/gl-matrix.js", "src/wwwroot/javascripts/min/lib/q.js"],
+  sources: ["src/wwwroot/javascripts/min/lib/gl-matrix.js", "src/wwwroot/javascripts/min/lib/q.js",
+    "src/wwwroot/javascripts/min/lib/jski.js"
+  ],
   tests: ["test/client/**/*Test.js"],
 
   extensions: [require("buster-amd")],

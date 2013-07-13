@@ -5,29 +5,33 @@ ClientApp is the primary entry point for the main client side application
 @module Client
 @class ClientApp
 */
-define(["module", "angular", "lib/ccpwgl", "ApplicationController", "production/ccp/ProductionManager", "ui/ControllerList", "directives/DirectiveList"],
+define(["module", "angular", "lib/ccpwgl", "ApplicationController", "production/ccp/ProductionManager", "services/ServiceList", "ui/ControllerList", "directives/DirectiveList"],
 
-function(module, angular, ccpwgl, appController, ProductionManager, controllerList, directiveList) {
-  "use strict";
+  function(module, angular, ccpwgl, appController, ProductionManager, serviceList, controllerList, directiveList) {
+    "use strict";
 
-  var config = module.config();
+    var config = module.config();
 
-  var main = function(mainScreen) {
-    var appModule = angular.module("ClientApp", ["ui.bootstrap"]);
-    var productionManager = new ProductionManager(ccpwgl);
+    var main = function(mainScreen) {
+      var appModule = angular.module("ClientApp", ["ui.bootstrap"]);
+      var productionManager = new ProductionManager(ccpwgl);
 
-    appModule.controller("ApplicationController", ["$scope", "$dialog", appController.create(config, productionManager, mainScreen)]);
+      appModule.controller("ApplicationController", ["$scope", "$dialog", appController.create(config, productionManager, mainScreen)]);
 
-    directiveList.forEach(function(directive) {
-      directive.register(angular, appModule);
-    });
+      serviceList.forEach(function(service) {
+        service.register(angular, appModule);
+      });
 
-    controllerList.forEach(function(controller) {
-      controller.register(appModule);
-    });
+      directiveList.forEach(function(directive) {
+        directive.register(angular, appModule);
+      });
 
-    return [appModule.name];
-  };
+      controllerList.forEach(function(controller) {
+        controller.register(appModule);
+      });
 
-  return main;
-});
+      return [appModule.name];
+    };
+
+    return main;
+  });
