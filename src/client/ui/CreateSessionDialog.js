@@ -29,6 +29,12 @@ define(["version", "ui/UiTemplates", "util/validators/SessionValidator"],
       $scope.version = version;
 
       $scope.backgrounds = model.backgrounds;
+      $scope.qualityOptions = model.qualityOptions;
+      $scope.selectedOptions = {};
+      model.qualityOptions.forEach(function(option) {
+        $scope.selectedOptions[option.field] = option.defaultValue;
+      });
+
       $scope.set = {
         type: "space",
         selectedBackground: model.backgrounds[0],
@@ -53,9 +59,13 @@ define(["version", "ui/UiTemplates", "util/validators/SessionValidator"],
         var notifier = {};
 
         notifier.space = function(user) {
+          user.setQualityOptions($scope.selectedOptions);
+
           return user.createSpaceSet($scope.set.selectedBackground, $scope.set.sessionData);
         };
         notifier.chromaKey = function(user) {
+          user.setQualityOptions($scope.selectedOptions);
+
           return user.createChromaKeyedSet($scope.set.chromaKey.color, $scope.set.sessionData);
         };
 

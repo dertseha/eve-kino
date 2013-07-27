@@ -20,9 +20,7 @@ define(["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/
       archetypesByType[Constructor.propType] = Constructor;
     });
 
-    var sceneOptions = {
-
-    };
+    var sceneOptions = {};
 
     var onSceneCreated = function(ccpwgl, scene) {
       var components = {
@@ -62,13 +60,75 @@ define(["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/
       this.ccpwgl = ccpwgl;
     };
 
-    /**
-    See ccpwgl.setResourcePath()
+    ProductionManager.prototype.getQualityOptions = function() {
+      var options = [];
+      var valueOption = function(title, id) {
+        var opt = {
+          title: title,
+          id: id
+        };
 
-    @method setResourcePath
-    @param {string} namespace Resource namespace.
-    @param {string} url URL to resource root. Needs to have a trailing slash.
-  */
+        return opt;
+      };
+
+      // Texture quality options are currently disabled, as long as
+      // we only have the HIGH ones available.
+      //
+      // options.push({
+      //   title: "Texture Quality",
+      //   field: "textureQuality",
+      //   defaultValue: this.ccpwgl.TextureQuality.HIGH,
+      //   values: [valueOption("High", this.ccpwgl.TextureQuality.HIGH),
+      //     valueOption("Medium", this.ccpwgl.TextureQuality.MEDIUM),
+      //     valueOption("Low", this.ccpwgl.TextureQuality.LOW)
+      //   ]
+      // });
+
+      options.push({
+        title: "Shader Quality",
+        field: "shaderQuality",
+        defaultValue: this.ccpwgl.ShaderQuality.HIGH,
+        values: [valueOption("High", this.ccpwgl.ShaderQuality.HIGH),
+          valueOption("Low", this.ccpwgl.ShaderQuality.LOW)
+        ]
+      });
+
+      options.push({
+        title: "Anisotropic Filter",
+        field: "anisotropicFilter",
+        defaultValue: true,
+        values: [valueOption("Yes", true),
+          valueOption("No", false)
+        ]
+      });
+
+      options.push({
+        title: "Postprocessing",
+        field: "postprocessing",
+        defaultValue: false,
+        values: [valueOption("Yes", true),
+          valueOption("No", false)
+        ]
+      });
+
+      return options;
+    };
+
+    ProductionManager.prototype.setQualityOptions = function(options) {
+      var name;
+
+      for (name in options) {
+        sceneOptions[name] = options[name];
+      }
+    };
+
+    /**
+     * See ccpwgl.setResourcePath()
+     *
+     * @method setResourcePath
+     * @param {string} namespace Resource namespace.
+     * @param {string} url URL to resource root. Needs to have a trailing slash.
+     */
     ProductionManager.prototype.setResourcePath = function(namespace, url) {
       this.ccpwgl.setResourcePath(namespace, url);
     };

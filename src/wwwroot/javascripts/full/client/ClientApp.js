@@ -40,7 +40,7 @@ this["UiTemplates"] = this["UiTemplates"] || {};
 
 this["UiTemplates"]["CreateSessionDialog"] = function anonymous(locals) {
 var buf = [];
-buf.push("<div class=\"modal-header\"><h3>Create a Session</h3><span>eve-kino v.{{version}}</span></div><div class=\"modal-body\"><tabset><tab heading=\"Background\"><div class=\"btn-group\"><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'space'\" class=\"btn\">Space</button><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'chromaKey'\" class=\"btn\">Chroma Key</button></div><div class=\"row-fluid\"><div ng-show=\"(set.type == 'space')\">Select a background:<div class=\"row-fluid\"><select ng-model=\"set.selectedBackground\" ng-options=\"bg as bg.resourceUrl for bg in backgrounds\" size=\"5\" class=\"span12\"></select></div></div><div ng-show=\"(set.type == 'chromaKey')\">Pick a color (RGB values):<div data-color-input color=\"set.chromaKey.color\" on-change=\"colorInputChanged()\"></div></div></div></tab><tab heading=\"By File\"><div data-file-input=\"file\" on-change=\"readFile(file)\">Choose File</div></tab></tabset></div><div class=\"modal-footer\"><button ng-click=\"create(set.type)\" ng-disabled=\"!canBeCreated()\" class=\"btn btn-primary\">Create</button></div>");;return buf.join("");
+buf.push("<div class=\"modal-header\"><h3>Create a Session</h3><span>eve-kino v.{{version}}</span></div><div class=\"modal-body\"><tabset><tab heading=\"Background\"><div class=\"btn-group\"><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'space'\" class=\"btn\">Space</button><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'chromaKey'\" class=\"btn\">Chroma Key</button></div><div class=\"row-fluid\"><div ng-show=\"(set.type == 'space')\">Select a background:<div class=\"row-fluid\"><select ng-model=\"set.selectedBackground\" ng-options=\"bg as bg.resourceUrl for bg in backgrounds\" size=\"5\" class=\"span12\"></select></div></div><div ng-show=\"(set.type == 'chromaKey')\">Pick a color (RGB values):<div data-color-input color=\"set.chromaKey.color\" on-change=\"colorInputChanged()\"></div></div></div></tab><tab heading=\"By File\"><div data-file-input=\"file\" on-change=\"readFile(file)\">Choose File</div></tab><tab heading=\"Quality\"><div ng-repeat=\"option in qualityOptions\" class=\"row-fluid\"><div class=\"span4\">{{option.title}}</div><div class=\"span8 btn-group\"><button type=\"button\" ng-repeat=\"value in option.values\" ng-model=\"selectedOptions[option.field]\" btn-radio=\"value.id\" class=\"btn\">{{value.title}}</button></div></div><div class=\"row-fluid\"><div class=\"span12\">Some of these settings are dependent on machine or resources and might not be available.</div></div></tab></tabset></div><div class=\"modal-footer\"><button ng-click=\"create(set.type)\" ng-disabled=\"!canBeCreated()\" class=\"btn btn-primary\">Create</button></div>");;return buf.join("");
 };
 
 this["UiTemplates"]["SplashDialog"] = function anonymous(locals) {
@@ -202,6 +202,12 @@ define('ui/CreateSessionDialog',["version", "ui/UiTemplates", "util/validators/S
       $scope.version = version;
 
       $scope.backgrounds = model.backgrounds;
+      $scope.qualityOptions = model.qualityOptions;
+      $scope.selectedOptions = {};
+      model.qualityOptions.forEach(function(option) {
+        $scope.selectedOptions[option.field] = option.defaultValue;
+      });
+
       $scope.set = {
         type: "space",
         selectedBackground: model.backgrounds[0],
@@ -226,9 +232,13 @@ define('ui/CreateSessionDialog',["version", "ui/UiTemplates", "util/validators/S
         var notifier = {};
 
         notifier.space = function(user) {
+          user.setQualityOptions($scope.selectedOptions);
+
           return user.createSpaceSet($scope.set.selectedBackground, $scope.set.sessionData);
         };
         notifier.chromaKey = function(user) {
+          user.setQualityOptions($scope.selectedOptions);
+
           return user.createChromaKeyedSet($scope.set.chromaKey.color, $scope.set.sessionData);
         };
 
@@ -1572,6 +1582,10 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       };
 
       var createDialogListener = {
+        setQualityOptions: function(options) {
+          productionManager.setQualityOptions(options);
+        },
+
         createSpaceSet: function(background, sessionData) {
           var creation = productionManager.createSet(mainScreen, background.resourceUrl);
 
@@ -1599,7 +1613,8 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       var dialogParams = {
         backgrounds: [{
           resourceUrl: "res:/dx9/scene/universe/a01_cube.red"
-        }]
+        }],
+        qualityOptions: productionManager.getQualityOptions()
       };
       var dialogTemplate = uiDialogs.createSessionDialog.getBuilder(this.dialogFactory, dialogParams);
       var loadingDialog = null;
@@ -2299,9 +2314,7 @@ define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource",
       archetypesByType[Constructor.propType] = Constructor;
     });
 
-    var sceneOptions = {
-
-    };
+    var sceneOptions = {};
 
     var onSceneCreated = function(ccpwgl, scene) {
       var components = {
@@ -2341,13 +2354,75 @@ define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource",
       this.ccpwgl = ccpwgl;
     };
 
-    /**
-    See ccpwgl.setResourcePath()
+    ProductionManager.prototype.getQualityOptions = function() {
+      var options = [];
+      var valueOption = function(title, id) {
+        var opt = {
+          title: title,
+          id: id
+        };
 
-    @method setResourcePath
-    @param {string} namespace Resource namespace.
-    @param {string} url URL to resource root. Needs to have a trailing slash.
-  */
+        return opt;
+      };
+
+      // Texture quality options are currently disabled, as long as
+      // we only have the HIGH ones available.
+      //
+      // options.push({
+      //   title: "Texture Quality",
+      //   field: "textureQuality",
+      //   defaultValue: this.ccpwgl.TextureQuality.HIGH,
+      //   values: [valueOption("High", this.ccpwgl.TextureQuality.HIGH),
+      //     valueOption("Medium", this.ccpwgl.TextureQuality.MEDIUM),
+      //     valueOption("Low", this.ccpwgl.TextureQuality.LOW)
+      //   ]
+      // });
+
+      options.push({
+        title: "Shader Quality",
+        field: "shaderQuality",
+        defaultValue: this.ccpwgl.ShaderQuality.HIGH,
+        values: [valueOption("High", this.ccpwgl.ShaderQuality.HIGH),
+          valueOption("Low", this.ccpwgl.ShaderQuality.LOW)
+        ]
+      });
+
+      options.push({
+        title: "Anisotropic Filter",
+        field: "anisotropicFilter",
+        defaultValue: true,
+        values: [valueOption("Yes", true),
+          valueOption("No", false)
+        ]
+      });
+
+      options.push({
+        title: "Postprocessing",
+        field: "postprocessing",
+        defaultValue: false,
+        values: [valueOption("Yes", true),
+          valueOption("No", false)
+        ]
+      });
+
+      return options;
+    };
+
+    ProductionManager.prototype.setQualityOptions = function(options) {
+      var name;
+
+      for (name in options) {
+        sceneOptions[name] = options[name];
+      }
+    };
+
+    /**
+     * See ccpwgl.setResourcePath()
+     *
+     * @method setResourcePath
+     * @param {string} namespace Resource namespace.
+     * @param {string} url URL to resource root. Needs to have a trailing slash.
+     */
     ProductionManager.prototype.setResourcePath = function(namespace, url) {
       this.ccpwgl.setResourcePath(namespace, url);
     };

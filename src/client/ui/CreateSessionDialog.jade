@@ -21,5 +21,13 @@ div(class="modal-body")
     tab(heading="By File")
       div(data-file-input="file", on-change="readFile(file)") Choose File
 
+    tab(heading="Quality")
+      div(class="row-fluid", ng-repeat="option in qualityOptions")
+        div(class="span4") {{option.title}}
+        div(class="span8 btn-group")
+          button(type="button", class="btn", ng-repeat="value in option.values", ng-model="selectedOptions[option.field]", btn-radio="value.id") {{value.title}}
+      div(class="row-fluid")
+        div(class="span12") Some of these settings are dependent on machine or resources and might not be available.
+
 div(class="modal-footer")
   button(ng-click="create(set.type)", class="btn btn-primary", ng-disabled="!canBeCreated()") Create

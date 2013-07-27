@@ -166,6 +166,10 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       };
 
       var createDialogListener = {
+        setQualityOptions: function(options) {
+          productionManager.setQualityOptions(options);
+        },
+
         createSpaceSet: function(background, sessionData) {
           var creation = productionManager.createSet(mainScreen, background.resourceUrl);
 
@@ -193,7 +197,8 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       var dialogParams = {
         backgrounds: [{
           resourceUrl: "res:/dx9/scene/universe/a01_cube.red"
-        }]
+        }],
+        qualityOptions: productionManager.getQualityOptions()
       };
       var dialogTemplate = uiDialogs.createSessionDialog.getBuilder(this.dialogFactory, dialogParams);
       var loadingDialog = null;
