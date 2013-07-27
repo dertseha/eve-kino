@@ -13,55 +13,6 @@ define(["version", "ui/UiTemplates", "util/validators/SessionValidator"],
     var name = "CreateSessionDialogController";
     var template = templates.CreateSessionDialog();
 
-    var colorStringParser = {
-      "^#([0-9A-Fa-f]){6}$": function(value) {
-        var r = parseInt(value.substr(1, 2), 16);
-        var g = parseInt(value.substr(3, 2), 16);
-        var b = parseInt(value.substr(5, 2), 16);
-
-        return [r / 255.0, g / 255.0, b / 255.0];
-      },
-      "^#([0-9A-Fa-f]){3}$": function(value) {
-        var r = parseInt(value.substr(1, 1), 16);
-        var g = parseInt(value.substr(2, 1), 16);
-        var b = parseInt(value.substr(3, 1), 16);
-
-        return [r / 15.0, g / 15.0, b / 15.0];
-      }
-    };
-
-    var forEachMatchingColorStringParser = function(colorString, callback) {
-      var expression;
-      var regExp;
-
-      for (expression in colorStringParser) {
-        regExp = new RegExp(expression);
-        if (regExp.test(colorString)) {
-          callback(colorStringParser[expression]);
-        }
-      }
-    };
-
-    var parseColor = function(colorString) {
-      var result = [0, 0, 0];
-
-      forEachMatchingColorStringParser(colorString, function(parser) {
-        result = parser(colorString);
-      });
-
-      return result;
-    };
-
-    var isColorValid = function(colorString) {
-      var result = false;
-
-      forEachMatchingColorStringParser(colorString, function() {
-        result = true;
-      });
-
-      return result;
-    };
-
     var controller = function($scope, dialog, model, fileReader) {
       var findBackgroundByUrl = function(url) {
         var result = null;
@@ -82,7 +33,7 @@ define(["version", "ui/UiTemplates", "util/validators/SessionValidator"],
         type: "space",
         selectedBackground: model.backgrounds[0],
         chromaKey: {
-          color: "#00FF00"
+          color: [0.0, 1.0, 0.0]
         }
       };
 
@@ -92,7 +43,7 @@ define(["version", "ui/UiTemplates", "util/validators/SessionValidator"],
         if ($scope.set.type === "space") {
           result = !! $scope.set.selectedBackground;
         } else if ($scope.set.type === "chromaKey") {
-          result = isColorValid($scope.set.chromaKey.color);
+          result = !! $scope.set.chromaKey.color;
         }
 
         return result;
@@ -105,7 +56,7 @@ define(["version", "ui/UiTemplates", "util/validators/SessionValidator"],
           return user.createSpaceSet($scope.set.selectedBackground, $scope.set.sessionData);
         };
         notifier.chromaKey = function(user) {
-          return user.createChromaKeyedSet(parseColor($scope.set.chromaKey.color), $scope.set.sessionData);
+          return user.createChromaKeyedSet($scope.set.chromaKey.color, $scope.set.sessionData);
         };
 
         dialog.close(notifier[setType]);
@@ -132,11 +83,10 @@ define(["version", "ui/UiTemplates", "util/validators/SessionValidator"],
               $scope.set.selectedBackground = findBackgroundByUrl(object.session.set.space.background);
             } else if (object.session.set.chromaKey) {
               $scope.set.type = "chromaKey";
-              $scope.set.chromaKey.color = "#";
-              object.session.set.chromaKey.color.forEach(function(part) {
-                $scope.set.chromaKey.color += ("0" + (part * 255.0).toString(16)).substr(-2);
-              });
+              $scope.set.chromaKey.color = object.session.set.chromaKey.color;
             }
+          } else {
+            console.log("!!!!! file not valid");
           }
         });
       };

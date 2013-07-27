@@ -73,6 +73,41 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
         return controller.encodeSession();
       };
 
+      modelView.starLightColorChanged = function() {
+        controller.setStarLightColor(modelView.set.lighting.starLightColor);
+      };
+      modelView.requestStar = function(starDesc) {
+        controller.requestStar(starDesc);
+      };
+
+      modelView.set = {
+        lighting: {
+          starLightColor: [0, 0, 0]
+        }
+      };
+
+      modelView.stars = [];
+      var noStar = {
+        resourceUrl: "",
+        toString: function() {
+          return "(no star)";
+        },
+        request: function(lightBoard) {
+          lightBoard.removeStar();
+        }
+      };
+      modelView.stars.push(noStar);
+      modelView.stars.push({
+        resourceUrl: "res:/dx9/model/lensflare/blue.red",
+        toString: function() {
+          return this.resourceUrl;
+        },
+        request: function(lightBoard) {
+          lightBoard.requestStar(this.resourceUrl);
+        }
+      });
+      modelView.selectedStar = noStar;
+
       modelView.stageProps = [];
 
       modelView.props = [];
@@ -206,7 +241,8 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
           cameras: [{
             shotList: this.cameraOperator.getShotList().data
           }]
-        }
+        },
+        lighting: this.set.getLightBoard().getStateData()
       };
 
       return JSON.stringify(session);
@@ -270,9 +306,22 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       gamepadApi.init();
     };
 
+    ApplicationController.prototype.findStarDescByResourceUrl = function(resourceUrl) {
+      var result = null;
+
+      this.modelView.stars.forEach(function(starDesc) {
+        if (starDesc.resourceUrl === resourceUrl) {
+          result = starDesc;
+        }
+      });
+
+      return result;
+    };
+
     ApplicationController.prototype.onSessionCreated = function(session) {
       var that = this;
       var set = session.set;
+      var lightBoard = set.getLightBoard();
 
       this.set = set;
 
@@ -283,6 +332,14 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       this.camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
 
       var shotList = null;
+      if (session.data && session.data.lighting) {
+        this.modelView.set.lighting.starLightColor = session.data.lighting.starLightColor;
+        lightBoard.setStarLightColor(session.data.lighting.starLightColor);
+        if (session.data.lighting.starResourceUrl !== "") {
+          this.modelView.selectedStar = this.findStarDescByResourceUrl(session.data.lighting.starResourceUrl);
+          lightBoard.requestStar(session.data.lighting.starResourceUrl);
+        }
+      }
       if (session.data && session.data.videography) {
         session.data.videography.cameras.forEach(function(cameraEntry) {
           var track = new Track(cameraEntry.shotList);
@@ -319,12 +376,24 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       set.getSyncSource().setCallback(function() {
         // TODO: move this to some general time keeper
 
+        // this is part of the callback from the intermittent mechanism; onNewFrame
         that.stageManager.updateStage();
         that.cameraOperator.updateCamera();
 
+        // this is part of the intermittent mechanism
         that.reelTransmission.update();
       });
 
+    };
+
+    ApplicationController.prototype.setStarLightColor = function(rgb) {
+      var lightBoard = this.set.getLightBoard();
+
+      lightBoard.setStarLightColor(rgb);
+    };
+
+    ApplicationController.prototype.requestStar = function(starDesc) {
+      starDesc.request(this.set.getLightBoard());
     };
 
     ApplicationController.prototype.clearFocus = function() {

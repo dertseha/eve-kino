@@ -14,7 +14,7 @@ define([], function() {
         template: "<input type=\"file\" />",
         replace: true,
         link: function(scope, element, attrs) {
-          var modelGet = $parse(attrs.fileInput || attrs.dataFileInpu);
+          var modelGet = $parse(attrs.fileInput || attrs.dataFileInput);
           var modelSet = modelGet.assign;
           var onChange = $parse(attrs.onChange);
 

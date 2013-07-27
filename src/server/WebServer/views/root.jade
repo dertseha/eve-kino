@@ -8,10 +8,7 @@ block content
           div(class="row-fluid", id="menu")
             a(href="#", data-save-as) Save Data
           div(class="row-fluid")
-            h5 Focus Selection
-          div(class="row-fluid")
-            button(class="span12", ng-click="setFocusOnCamera()") Focus Camera
-            select(class="span12", ng-model="selectedFocus", ng-options="prop as prop.toString() for prop in stageProps", ng-change="setFocusOnProp(selectedFocus)", size="5")
+            span(class="span12") Status: {{status}}
           div(class="row-fluid")
             h5 Playhead Controls
           div(class="row-fluid")
@@ -19,8 +16,19 @@ block content
               button(class="span4", ng-click="record()") Record 
               button(class="span4", ng-click="stop()") Stop
               button(class="span4", ng-click="play()") Play
-          div(class="row-fluid")
-            span(class="span12") Status: {{status}}
+          accordion(close-others="true")
+            accordion-group(heading="Focus Selection")
+              div(class="row-fluid")
+                button(class="span12", ng-click="setFocusOnCamera()") Focus Camera
+                select(class="span12", ng-model="selectedFocus", ng-options="prop as prop.toString() for prop in stageProps", ng-change="setFocusOnProp(selectedFocus)", size="5")
+            accordion-group(heading="Lighting")
+              div(class="row-fluid")
+                div(class="span12") Pick a star light color (RGB values):
+              div(data-color-input color="set.lighting.starLightColor", on-change="starLightColorChanged()")
+              div(class="row-fluid")
+                div(class="span12") Select a star:
+              select(class="span12", ng-model="selectedStar", ng-options="star as star.toString() for star in stars", ng-change="requestStar(selectedStar)")
+
         div(class="span8")
           div(class="row-fluid")
             div(class="span12 filmView", id="mainView", data-film-view)

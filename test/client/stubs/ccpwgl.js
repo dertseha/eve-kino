@@ -4,7 +4,9 @@ define("lib/ccpwgl", [], function() {
   var nullFunction = function() {};
   var ccpwgl = {};
 
-  ccpwgl.scene = {};
+  ccpwgl.scene = {
+    setSunLightColor: function() {}
+  };
 
   ccpwgl.setResourcePath = nullFunction;
   ccpwgl.initialize = nullFunction;

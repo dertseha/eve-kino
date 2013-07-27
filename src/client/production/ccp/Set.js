@@ -28,5 +28,9 @@ define([], function() {
     return this.sceneCamera;
   };
 
+  Set.prototype.getLightBoard = function() {
+    return this.lightBoard;
+  };
+
   return Set;
 });

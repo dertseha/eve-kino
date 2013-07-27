@@ -40,7 +40,7 @@ this["UiTemplates"] = this["UiTemplates"] || {};
 
 this["UiTemplates"]["CreateSessionDialog"] = function anonymous(locals) {
 var buf = [];
-buf.push("<div class=\"modal-header\"><h3>Create a Session</h3><span>eve-kino v.{{version}}</span></div><div class=\"modal-body\"><tabset><tab heading=\"Background\"><div class=\"btn-group\"><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'space'\" class=\"btn\">Space</button><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'chromaKey'\" class=\"btn\">Chroma Key</button></div><div class=\"row-fluid\"><div ng-show=\"(set.type == 'space')\">Select a background:<div class=\"row-fluid\"><select ng-model=\"set.selectedBackground\" ng-options=\"bg as bg.resourceUrl for bg in backgrounds\" size=\"5\" class=\"span12\"></select></div></div><div ng-show=\"(set.type == 'chromaKey')\">Pick a color (RGB values):<div class=\"row-fluid\"><div class=\"span4\"><input type=\"text\" ng-model=\"set.chromaKey.color\" placeholder=\"#0044BB or #0F0\"/></div><div class=\"span4\"></div><div ng-style=\"{ 'backgroundColor': set.chromaKey.color }\" class=\"span4 container\"></div></div></div></div></tab><tab heading=\"By File\"><div data-file-input=\"file\" on-change=\"readFile(file)\">Choose File</div></tab></tabset></div><div class=\"modal-footer\"><button ng-click=\"create(set.type)\" ng-disabled=\"!canBeCreated()\" class=\"btn btn-primary\">Create</button></div>");;return buf.join("");
+buf.push("<div class=\"modal-header\"><h3>Create a Session</h3><span>eve-kino v.{{version}}</span></div><div class=\"modal-body\"><tabset><tab heading=\"Background\"><div class=\"btn-group\"><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'space'\" class=\"btn\">Space</button><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'chromaKey'\" class=\"btn\">Chroma Key</button></div><div class=\"row-fluid\"><div ng-show=\"(set.type == 'space')\">Select a background:<div class=\"row-fluid\"><select ng-model=\"set.selectedBackground\" ng-options=\"bg as bg.resourceUrl for bg in backgrounds\" size=\"5\" class=\"span12\"></select></div></div><div ng-show=\"(set.type == 'chromaKey')\">Pick a color (RGB values):<div data-color-input color=\"set.chromaKey.color\" on-change=\"colorInputChanged()\"></div></div></div></tab><tab heading=\"By File\"><div data-file-input=\"file\" on-change=\"readFile(file)\">Choose File</div></tab></tabset></div><div class=\"modal-footer\"><button ng-click=\"create(set.type)\" ng-disabled=\"!canBeCreated()\" class=\"btn btn-primary\">Create</button></div>");;return buf.join("");
 };
 
 this["UiTemplates"]["SplashDialog"] = function anonymous(locals) {
@@ -186,55 +186,6 @@ define('ui/CreateSessionDialog',["version", "ui/UiTemplates", "util/validators/S
     var name = "CreateSessionDialogController";
     var template = templates.CreateSessionDialog();
 
-    var colorStringParser = {
-      "^#([0-9A-Fa-f]){6}$": function(value) {
-        var r = parseInt(value.substr(1, 2), 16);
-        var g = parseInt(value.substr(3, 2), 16);
-        var b = parseInt(value.substr(5, 2), 16);
-
-        return [r / 255.0, g / 255.0, b / 255.0];
-      },
-      "^#([0-9A-Fa-f]){3}$": function(value) {
-        var r = parseInt(value.substr(1, 1), 16);
-        var g = parseInt(value.substr(2, 1), 16);
-        var b = parseInt(value.substr(3, 1), 16);
-
-        return [r / 15.0, g / 15.0, b / 15.0];
-      }
-    };
-
-    var forEachMatchingColorStringParser = function(colorString, callback) {
-      var expression;
-      var regExp;
-
-      for (expression in colorStringParser) {
-        regExp = new RegExp(expression);
-        if (regExp.test(colorString)) {
-          callback(colorStringParser[expression]);
-        }
-      }
-    };
-
-    var parseColor = function(colorString) {
-      var result = [0, 0, 0];
-
-      forEachMatchingColorStringParser(colorString, function(parser) {
-        result = parser(colorString);
-      });
-
-      return result;
-    };
-
-    var isColorValid = function(colorString) {
-      var result = false;
-
-      forEachMatchingColorStringParser(colorString, function() {
-        result = true;
-      });
-
-      return result;
-    };
-
     var controller = function($scope, dialog, model, fileReader) {
       var findBackgroundByUrl = function(url) {
         var result = null;
@@ -255,7 +206,7 @@ define('ui/CreateSessionDialog',["version", "ui/UiTemplates", "util/validators/S
         type: "space",
         selectedBackground: model.backgrounds[0],
         chromaKey: {
-          color: "#00FF00"
+          color: [0.0, 1.0, 0.0]
         }
       };
 
@@ -265,7 +216,7 @@ define('ui/CreateSessionDialog',["version", "ui/UiTemplates", "util/validators/S
         if ($scope.set.type === "space") {
           result = !! $scope.set.selectedBackground;
         } else if ($scope.set.type === "chromaKey") {
-          result = isColorValid($scope.set.chromaKey.color);
+          result = !! $scope.set.chromaKey.color;
         }
 
         return result;
@@ -278,7 +229,7 @@ define('ui/CreateSessionDialog',["version", "ui/UiTemplates", "util/validators/S
           return user.createSpaceSet($scope.set.selectedBackground, $scope.set.sessionData);
         };
         notifier.chromaKey = function(user) {
-          return user.createChromaKeyedSet(parseColor($scope.set.chromaKey.color), $scope.set.sessionData);
+          return user.createChromaKeyedSet($scope.set.chromaKey.color, $scope.set.sessionData);
         };
 
         dialog.close(notifier[setType]);
@@ -305,11 +256,10 @@ define('ui/CreateSessionDialog',["version", "ui/UiTemplates", "util/validators/S
               $scope.set.selectedBackground = findBackgroundByUrl(object.session.set.space.background);
             } else if (object.session.set.chromaKey) {
               $scope.set.type = "chromaKey";
-              $scope.set.chromaKey.color = "#";
-              object.session.set.chromaKey.color.forEach(function(part) {
-                $scope.set.chromaKey.color += ("0" + (part * 255.0).toString(16)).substr(-2);
-              });
+              $scope.set.chromaKey.color = object.session.set.chromaKey.color;
             }
+          } else {
+            console.log("!!!!! file not valid");
           }
         });
       };
@@ -1529,6 +1479,41 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
         return controller.encodeSession();
       };
 
+      modelView.starLightColorChanged = function() {
+        controller.setStarLightColor(modelView.set.lighting.starLightColor);
+      };
+      modelView.requestStar = function(starDesc) {
+        controller.requestStar(starDesc);
+      };
+
+      modelView.set = {
+        lighting: {
+          starLightColor: [0, 0, 0]
+        }
+      };
+
+      modelView.stars = [];
+      var noStar = {
+        resourceUrl: "",
+        toString: function() {
+          return "(no star)";
+        },
+        request: function(lightBoard) {
+          lightBoard.removeStar();
+        }
+      };
+      modelView.stars.push(noStar);
+      modelView.stars.push({
+        resourceUrl: "res:/dx9/model/lensflare/blue.red",
+        toString: function() {
+          return this.resourceUrl;
+        },
+        request: function(lightBoard) {
+          lightBoard.requestStar(this.resourceUrl);
+        }
+      });
+      modelView.selectedStar = noStar;
+
       modelView.stageProps = [];
 
       modelView.props = [];
@@ -1662,7 +1647,8 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
           cameras: [{
             shotList: this.cameraOperator.getShotList().data
           }]
-        }
+        },
+        lighting: this.set.getLightBoard().getStateData()
       };
 
       return JSON.stringify(session);
@@ -1726,9 +1712,22 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       gamepadApi.init();
     };
 
+    ApplicationController.prototype.findStarDescByResourceUrl = function(resourceUrl) {
+      var result = null;
+
+      this.modelView.stars.forEach(function(starDesc) {
+        if (starDesc.resourceUrl === resourceUrl) {
+          result = starDesc;
+        }
+      });
+
+      return result;
+    };
+
     ApplicationController.prototype.onSessionCreated = function(session) {
       var that = this;
       var set = session.set;
+      var lightBoard = set.getLightBoard();
 
       this.set = set;
 
@@ -1739,6 +1738,14 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       this.camCommands = this.director.getCommandChannel("camera", Resources.CameraOperator.getActionNames());
 
       var shotList = null;
+      if (session.data && session.data.lighting) {
+        this.modelView.set.lighting.starLightColor = session.data.lighting.starLightColor;
+        lightBoard.setStarLightColor(session.data.lighting.starLightColor);
+        if (session.data.lighting.starResourceUrl !== "") {
+          this.modelView.selectedStar = this.findStarDescByResourceUrl(session.data.lighting.starResourceUrl);
+          lightBoard.requestStar(session.data.lighting.starResourceUrl);
+        }
+      }
       if (session.data && session.data.videography) {
         session.data.videography.cameras.forEach(function(cameraEntry) {
           var track = new Track(cameraEntry.shotList);
@@ -1775,12 +1782,24 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       set.getSyncSource().setCallback(function() {
         // TODO: move this to some general time keeper
 
+        // this is part of the callback from the intermittent mechanism; onNewFrame
         that.stageManager.updateStage();
         that.cameraOperator.updateCamera();
 
+        // this is part of the intermittent mechanism
         that.reelTransmission.update();
       });
 
+    };
+
+    ApplicationController.prototype.setStarLightColor = function(rgb) {
+      var lightBoard = this.set.getLightBoard();
+
+      lightBoard.setStarLightColor(rgb);
+    };
+
+    ApplicationController.prototype.requestStar = function(starDesc) {
+      starDesc.request(this.set.getLightBoard());
     };
 
     ApplicationController.prototype.clearFocus = function() {
@@ -1949,6 +1968,10 @@ define('production/ccp/Set',[], function() {
     return this.sceneCamera;
   };
 
+  Set.prototype.getLightBoard = function() {
+    return this.lightBoard;
+  };
+
   return Set;
 });
 /**
@@ -2104,12 +2127,134 @@ The light board provides access to lighting controls
 @module Client
 @class LightBoard
 */
-define('production/ccp/LightBoard',[], function() {
+define('production/ccp/LightBoard',["lib/q"], function(q) {
   
+
+  var SunLoadedState = function() {
+    this.context = null;
+  };
+
+  SunLoadedState.prototype.activate = function(context) {
+    this.context = context;
+  };
+
+  SunLoadedState.prototype.request = function(deferred, resourceUrl) {
+    this.context.activateSunState(new SunLoadingState(deferred, resourceUrl));
+  };
+
+  SunLoadedState.prototype.remove = function() {
+    this.context.activateSunState(new SunUnloadingState());
+  };
+
+  var SunUnloadingState = function() {
+
+  };
+
+  SunUnloadingState.prototype.activate = function(context) {
+    context.scene.removeSun();
+    context.activateSunState(new SunUnloadedState());
+  };
+
+  var SunLoadingState = function(deferred, resourceUrl) {
+    this.context = null;
+    this.resourceUrl = resourceUrl;
+    this.deferred = deferred;
+
+    this.nextState = new SunLoadedState();
+  };
+
+  SunLoadingState.prototype.activate = function(context) {
+    var that = this;
+
+    context.scene.loadSun(this.resourceUrl, function() {
+      context.stateData.starResourceUrl = that.resourceUrl;
+      context.activateSunState(that.nextState);
+      that.deferred.resolve();
+    });
+  };
+
+  SunLoadingState.prototype.request = function(deferred, resourceUrl) {
+    this.nextState = new SunLoadingState(deferred, resourceUrl);
+  };
+
+  SunLoadingState.prototype.remove = function() {
+    this.nextState = new SunUnloadingState();
+  };
+
+  var SunUnloadedState = function() {
+    this.context = null;
+  };
+
+  SunUnloadedState.prototype.activate = function(context) {
+    this.context = context;
+  };
+
+  SunUnloadedState.prototype.request = function(deferred, resourceUrl) {
+    return this.context.activateSunState(new SunLoadingState(deferred, resourceUrl));
+  };
+
+  SunUnloadedState.prototype.remove = function() {
+
+  };
 
   var LightBoard = function(ccpwgl, scene) {
     this.ccpwgl = ccpwgl;
     this.scene = scene;
+
+    this.stateData = {
+      starLightColor: [0, 0, 0],
+      starResourceUrl: ""
+    };
+
+    this.setStarLightColor(this.stateData.starLightColor); // reset
+
+    this.activateSunState(new SunUnloadedState());
+  };
+
+  LightBoard.prototype.getStateData = function() {
+    return this.stateData;
+  };
+
+  LightBoard.prototype.activateSunState = function(state) {
+    this.sunState = state;
+    state.activate(this);
+  };
+
+  LightBoard.prototype.setStarLightColor = function(rgb) {
+    this.stateData.starLightColor = rgb || [0, 0, 0];
+    this.scene.setSunLightColor(this.stateData.starLightColor);
+  };
+
+  /**
+   * Requests a star based on given URL. The returned promise will only be
+   * resolved. Time-outs or several sequential re-requests will have the
+   * promise ignored.
+   *
+   * @method requestStar
+   * @param {String} resourceUrl the URL of the star
+   * @return {Promise} Will be resolved when star loaded.
+   */
+  LightBoard.prototype.requestStar = function(resourceUrl) {
+    var deferred = q.defer();
+
+    this.sunState.request(deferred, resourceUrl);
+
+    return deferred.promise;
+  };
+
+  /**
+   * Requests to remove the current star. If one is still loading, it will
+   * be removed as soon as it is ready.
+   */
+  LightBoard.prototype.removeStar = function() {
+    this.sunState.remove();
+  };
+
+  LightBoard.SunStates = {
+    Unloaded: SunUnloadedState,
+    Loading: SunLoadingState,
+    Loaded: SunLoadedState,
+    Unloading: SunUnloadingState
   };
 
   return LightBoard;
@@ -2513,7 +2658,7 @@ define('directives/FileInputDirective',[], function() {
         template: "<input type=\"file\" />",
         replace: true,
         link: function(scope, element, attrs) {
-          var modelGet = $parse(attrs.fileInput || attrs.dataFileInpu);
+          var modelGet = $parse(attrs.fileInput || attrs.dataFileInput);
           var modelSet = modelGet.assign;
           var onChange = $parse(attrs.onChange);
 
@@ -2536,26 +2681,124 @@ define('directives/FileInputDirective',[], function() {
 
   return directive;
 });
+/* global console */
+/**
+The data-color-input directive is for handling a color value
+
+@module Client
+@class ColorInputDirective
+*/
+define('directives/ColorInputDirective',[], function() {
+  
+
+  var partToHex = function(part) {
+    var fixedNumberText = (part * 255.0).toFixed(0);
+    var parsedNumber = parseInt(fixedNumberText, 10);
+
+    return ("0" + parsedNumber.toString(16)).substr(-2);
+  };
+
+  var colorStringParser = {
+    "^#([0-9A-Fa-f]){6}$": function(value) {
+      var r = parseInt(value.substr(1, 2), 16);
+      var g = parseInt(value.substr(3, 2), 16);
+      var b = parseInt(value.substr(5, 2), 16);
+
+      return [r / 255.0, g / 255.0, b / 255.0];
+    }
+  };
+
+  var forEachMatchingColorStringParser = function(colorString, callback) {
+    var expression;
+    var regExp;
+
+    for (expression in colorStringParser) {
+      regExp = new RegExp(expression);
+      if (regExp.test(colorString)) {
+        callback(colorStringParser[expression]);
+      }
+    }
+  };
+
+  var parseColor = function(colorString) {
+    var result = null;
+
+    forEachMatchingColorStringParser(colorString, function(parser) {
+      result = parser(colorString);
+    });
+
+    return result;
+  };
+
+  var isColorValid = function(colorString) {
+    var result = false;
+
+    forEachMatchingColorStringParser(colorString, function() {
+      result = true;
+    });
+
+    return result;
+  };
+
+  var register = function(angular, appModule) {
+    appModule.directive("colorInput", function($parse) {
+      return {
+        restrict: "EA",
+        template: "" + //
+        "<div class='row-fluid'>" + //
+        "<div class='span4 container'><input class='span12' type='text' ng-model='colorText' placeholder='#0044BB' ng-change='colorChanged()'></input></div>" + //
+        "<div class='offset4 span4 container' ng-style='{ backgroundColor: colorText }'></div>" + //
+        "</div>",
+        replace: true,
+        link: function(scope, element, attrs) {
+          var modelGet = $parse(attrs.color || attrs.dataColor);
+          var modelSet = modelGet.assign;
+          var onChange = $parse(attrs.onChange);
+
+          scope.$watch(attrs.color, function(value) {
+            if (value) {
+              scope.colorText = "#" + partToHex(value[0]) + partToHex(value[1]) + partToHex(value[2]);
+            }
+          });
+
+          scope.colorChanged = function() {
+            var color = parseColor(scope.colorText);
+
+            modelSet(scope, color);
+
+            onChange(scope);
+          };
+        }
+      };
+    });
+  };
+
+  var directive = {
+    register: register
+  };
+
+  return directive;
+});
 /**
 The Directive list collects all directives
 
 @module Client
 @class DirectiveList
 */
-define('directives/DirectiveList',["directives/FilmViewDirective", "directives/SaveAsDirective", "directives/FileInputDirective"],
+define('directives/DirectiveList',["directives/FilmViewDirective", "directives/SaveAsDirective", "directives/FileInputDirective", "directives/ColorInputDirective"],
 
-function() {
-  
+  function() {
+    
 
-  var directives = [];
-  var i;
+    var directives = [];
+    var i;
 
-  for (i = 0; i < arguments.length; i++) {
-    directives.push(arguments[i]);
-  }
+    for (i = 0; i < arguments.length; i++) {
+      directives.push(arguments[i]);
+    }
 
-  return directives;
-});
+    return directives;
+  });
 /* jshint maxparams:10 */
 /**
 ClientApp is the primary entry point for the main client side application
