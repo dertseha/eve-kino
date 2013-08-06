@@ -8,7 +8,8 @@ define(["production/ccp/res/Ship"], function(Ship) {
   "use strict";
 
   var ShipArchetype = function(propData) {
-    this.propData = propData;
+    this.propData = propData || {};
+    this.propData.propType = ShipArchetype.propType;
   };
 
   ShipArchetype.propType = "ship";

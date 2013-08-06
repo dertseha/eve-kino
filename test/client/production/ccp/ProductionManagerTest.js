@@ -57,6 +57,28 @@ define(["lib/ccpwgl", "production/ccp/ProductionManager"], function(ccpwgl, Prod
         assert(true);
         done();
       });
+    },
+
+    "should return promise for setting resource paths": function() {
+      var namespace = "res";
+      var url = "path/to/stuff/";
+
+      var promise = this.productionManager.setResourcePath(namespace, url);
+
+      assert.isFunction(promise.then);
+    },
+
+    "should provide resource data for standard CCP resources": function(done) {
+      var promise = this.productionManager.setResourcePath(
+        ProductionManager.STANDARD_RES_NAMESPACE, ProductionManager.STANDARD_RES_URL);
+
+      promise.then(function(resData) {
+        assert.isObject(resData);
+        done();
+      }, function() {
+        assert(false);
+        done();
+      });
     }
 
   });

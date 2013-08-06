@@ -14,16 +14,6 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
   function(q, defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
     "use strict";
 
-    var addShip = function(modelView, resourceUrl) {
-      var arch = new ShipArchetype({
-        propType: ShipArchetype.propType
-      });
-
-      arch.setResourceUrl(resourceUrl);
-
-      modelView.props.push(arch);
-    };
-
     var addPlanet = function(modelView, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
       var arch = new PlanetArchetype({
         propType: PlanetArchetype.propType
@@ -112,11 +102,6 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
 
       modelView.props = [];
 
-      addShip(modelView, "res:/dx9/model/ship/amarr/battleship/ab3/ab3_t1.red");
-      addShip(modelView, "res:/dx9/model/ship/gallente/Cruiser/GC3/CreoDron/GC3_T2_CreoDron.red");
-      addShip(modelView, "res:/dx9/model/ship/amarr/at1/at1.red");
-      addShip(modelView, "res:/dx9/model/ship/jove/capsule/capsule.red");
-
       addPlanet(modelView, 40000002,
         "res:/dx9/model/WorldObject/Planet/Template/Terrestrial/P_Terrestrial_61.red",
         undefined,
@@ -128,8 +113,6 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
         "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png",
         "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
 
-      addScenery(modelView, "res:/dx9/Model/station/gallente/gs2/gs2.red");
-      addScenery(modelView, "res:/dx9/model/jumpgate/amarr/abg.red");
       addScenery(modelView, "res:/dx9/model/worldobject/asteroid/zuthrine/shards/zuthrine_shard01_unmined.red");
     };
 
@@ -139,6 +122,7 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
         set: {}
       };
 
+      this.mainScreen = mainScreen;
       this.productionManager = productionManager;
       this.modelView = modelView;
       this.dialogFactory = dialogFactory;
@@ -146,7 +130,34 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
 
       initModelView(modelView, this, config);
 
-      productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
+      var resPromise = productionManager.setResourcePath("res", "//web.ccpgamescdn.com/ccpwgl/res/");
+
+      resPromise.then(function(resLibrary) {
+
+        modelView.$apply(function() {
+          that.addPropsFromLibrary(resLibrary);
+          that.showCreationDialog(resLibrary);
+        });
+      });
+    };
+
+    ApplicationController.prototype.addPropsFromLibrary = function(resLibrary) {
+      var modelView = this.modelView;
+
+      resLibrary.forEachShip(function(shipEntry) {
+        modelView.props.push(shipEntry);
+      });
+      resLibrary.forEachScenery(function(sceneryEntry) {
+        modelView.props.push(sceneryEntry);
+      });
+    };
+
+    ApplicationController.prototype.showCreationDialog = function(resLibrary) {
+      var productionManager = this.productionManager;
+      var mainScreen = this.mainScreen;
+      var sessionMeta = this.sessionMeta;
+      var modelView = this.modelView;
+      var that = this;
 
       var createSession = function(creation, sessionData) {
         var deferred = q.defer();
@@ -195,12 +206,18 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       };
 
       var dialogParams = {
-        backgrounds: [{
-          resourceUrl: "res:/dx9/scene/universe/a01_cube.red"
-        }],
+        backgrounds: [],
         qualityOptions: productionManager.getQualityOptions()
       };
-      var dialogTemplate = uiDialogs.createSessionDialog.getBuilder(this.dialogFactory, dialogParams);
+
+      resLibrary.forEachSceneBackground(function(entry) {
+        dialogParams.backgrounds.push(entry);
+      });
+      dialogParams.backgrounds.sort(function(a, b) {
+        return a.toString().localeCompare(b.toString());
+      });
+
+      var dialogTemplate = uiDialogs.createSessionDialog.getBuilder(that.dialogFactory, dialogParams);
       var loadingDialog = null;
 
       dialogTemplate.open().then(function(result) {

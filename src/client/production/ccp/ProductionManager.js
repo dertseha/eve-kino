@@ -8,17 +8,31 @@ deparments.
 @class ProductionManager
 */
 define(["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/ccp/Stage",
-    "production/ccp/SceneCamera", "production/ccp/LightBoard", "production/ccp/res/ArchetypeList"
+    "production/ccp/SceneCamera", "production/ccp/LightBoard", "production/ccp/res/ArchetypeList",
+    "production/ResourceLibrary", "lib/ccpStandardGraphicIds"
   ],
 
-  function(q, SyncSource, Set, Stage, SceneCamera, LightBoard, archetypeList) {
+  function(q, SyncSource, Set, Stage, SceneCamera, LightBoard, archetypeList, ResourceLibrary, ccpStandardGraphicIds) {
     "use strict";
 
     var archetypesByType = {};
+    var standardResourceLibrary = null;
 
     archetypeList.forEach(function(Constructor) {
       archetypesByType[Constructor.propType] = Constructor;
     });
+
+    var forEachCcpStandardId = function(callback) {
+      var id;
+      var entry;
+
+      for (id in ccpStandardGraphicIds) {
+        entry = ccpStandardGraphicIds[id];
+        if (entry.graphicFile) {
+          callback(parseInt(id, 10), entry);
+        }
+      }
+    };
 
     var sceneOptions = {};
 
@@ -58,6 +72,93 @@ define(["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/
 
     var ProductionManager = function(ccpwgl) {
       this.ccpwgl = ccpwgl;
+    };
+
+    ProductionManager.STANDARD_RES_NAMESPACE = "res";
+    ProductionManager.STANDARD_RES_URL = "//web.ccpgamescdn.com/ccpwgl/res/";
+
+    var sceneRegExp = /.*\/scene\/.*red$/i;
+    var shipRegExp = /.*\/model\/ship\/.*red$/i;
+    var wreckRegExp = /.*wreck.*/i;
+    var planetRegExp = /.*\/planet\/.*red$/i;
+    var turretRegExp = /.*\/model\/turret\/.*red$/i;
+    var objRegExp = /.*red$/i;
+    var ignoredRegExp = /.*(character|interior|placeable).*/i;
+
+    var isSceneBackground = function(entry) {
+      return sceneRegExp.test(entry.graphicFile);
+    };
+
+    var isShip = function(entry) {
+      return shipRegExp.test(entry.graphicFile) && !wreckRegExp.test(entry.graphicFile);
+    };
+
+    var isPlanet = function(entry) {
+      return planetRegExp.test(entry.graphicFile);
+    };
+
+    var isTurret = function(entry) {
+      return turretRegExp.test(entry.graphicFile);
+    };
+
+    var isObject = function(entry) {
+      return objRegExp.test(entry.graphicFile) && !ignoredRegExp.test(entry.graphicFile);
+    };
+
+    var createSceneBackgroundEntry = (function() {
+      var entryPrototype = {
+        toString: function() {
+          return this.resourceUrl;
+        }
+      };
+
+      return function(entry) {
+        var bgEntry = Object.create(entryPrototype);
+
+        bgEntry.resourceUrl = entry.graphicFile;
+
+        return bgEntry;
+      };
+    })();
+
+    var createShipArchetype = function(entry) {
+      var Constructor = archetypesByType.ship;
+      var propData = {
+        resourceUrl: entry.graphicFile
+      };
+
+      return new Constructor(propData, entry.description);
+    };
+
+    var createSceneryArchetype = function(entry) {
+      var Constructor = archetypesByType.scenery;
+      var propData = {
+        resourceUrl: entry.graphicFile
+      };
+
+      return new Constructor(propData, entry.description);
+    };
+
+    ProductionManager.getStandardResourceLibrary = function() {
+
+      if (!standardResourceLibrary) {
+        standardResourceLibrary = new ResourceLibrary(ProductionManager.STANDARD_RES_NAMESPACE);
+        forEachCcpStandardId(function(id, entry) {
+          if (isSceneBackground(entry)) {
+            standardResourceLibrary.addSceneBackground(createSceneBackgroundEntry(entry));
+          } else if (isShip(entry)) {
+            standardResourceLibrary.addShip(createShipArchetype(entry));
+          } else if (isPlanet(entry)) {
+            // TODO
+          } else if (isTurret(entry)) {
+            // TODO
+          } else if (isObject(entry)) {
+            standardResourceLibrary.addScenery(createSceneryArchetype(entry));
+          }
+        });
+      }
+
+      return standardResourceLibrary;
     };
 
     ProductionManager.prototype.getQualityOptions = function() {
@@ -128,9 +229,19 @@ define(["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/
      * @method setResourcePath
      * @param {string} namespace Resource namespace.
      * @param {string} url URL to resource root. Needs to have a trailing slash.
+     * @return {Deferred} A deferred that will resolve with a resource library
      */
     ProductionManager.prototype.setResourcePath = function(namespace, url) {
+      var deferred = q.defer();
+
       this.ccpwgl.setResourcePath(namespace, url);
+      if (namespace === ProductionManager.STANDARD_RES_NAMESPACE) {
+        deferred.resolve(ProductionManager.getStandardResourceLibrary());
+      } else {
+        deferred.reject("Not supported");
+      }
+
+      return deferred.promise;
     };
 
     ProductionManager.prototype.createSet = function(canvas, backgroundUrl) {

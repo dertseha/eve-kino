@@ -8,7 +8,8 @@ define(["production/ccp/res/Scenery"], function(Scenery) {
   "use strict";
 
   var SceneryArchetype = function(propData) {
-    this.propData = propData;
+    this.propData = propData || {};
+    this.propData.propType = SceneryArchetype.propType;
   };
 
   SceneryArchetype.propType = "scenery";

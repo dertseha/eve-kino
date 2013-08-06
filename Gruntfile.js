@@ -57,7 +57,9 @@ module.exports = function(grunt) {
 
           modules: [{
             name: "ClientApp",
-            exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js", "lib/jski.js"]
+            exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js", "lib/jski.js",
+              "lib/ccpStandardGraphicIds.js"
+            ]
           }],
           paths: {
             jade: "lib/jade"
@@ -76,7 +78,9 @@ module.exports = function(grunt) {
 
           modules: [{
             name: "ClientApp",
-            exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js", "lib/jski.js"]
+            exclude: ["angular", "lib/gl-matrix.js", "lib/ccpwgl.js", "lib/gamepad.js", "lib/q.js", "lib/jski.js",
+              "lib/ccpStandardGraphicIds.js"
+            ]
           }],
           paths: {
             jade: "lib/jade"
