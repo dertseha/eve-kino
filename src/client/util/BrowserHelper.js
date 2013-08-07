@@ -16,18 +16,22 @@ define([], function() {
    * @param {Object} target in which target object to look for
    * @param {String} name the name of the property (without prefix)
    * @param {Object} [shim] optional shim to return if none found
-   * @return {Object} the found property if existing or shim
+   * @param {Object} [overrides] optional overrides, keyed by the prefix
+   * @return {Function} a getter function returning the found object or shim
    */
-  var findPrefixProperty = function(target, name, shim) {
+  var findPrefixProperty = function(target, name, shim, overrides) {
     var prefixes = ["webkit", "moz", "ms", "o"];
-    var result = shim;
+    var result = function() {
+      return shim;
+    };
 
     prefixes.forEach(function(prefix) {
-      var fullName = prefix + name;
-      var temp = target[fullName];
+      var fullName = (overrides && overrides[prefix]) || (prefix + name);
 
-      if (typeof(temp) !== "undefined") {
-        result = temp;
+      if (fullName in target) {
+        result = function() {
+          return target[fullName];
+        };
       }
     });
 
