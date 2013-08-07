@@ -10,37 +10,27 @@ define([], function() {
 
   var ResourceLibrary = function(namespace) {
     this.namespace = namespace;
-    this.sceneBackgrounds = [];
-    this.ships = [];
-    this.sceneries = [];
+
+    this.resources = {};
   };
 
   ResourceLibrary.prototype.getNamespace = function() {
     return this.namespace;
   };
 
-  ResourceLibrary.prototype.addSceneBackground = function(entry) {
-    this.sceneBackgrounds.push(entry);
+  ResourceLibrary.prototype.addResource = function(type, entry) {
+    var list = this.resources[type];
+
+    if (!list) {
+      this.resources[type] = list = [];
+    }
+    list.push(entry);
   };
 
-  ResourceLibrary.prototype.forEachSceneBackground = function(callback) {
-    this.sceneBackgrounds.forEach(callback);
-  };
-
-  ResourceLibrary.prototype.addShip = function(entry) {
-    this.ships.push(entry);
-  };
-
-  ResourceLibrary.prototype.forEachShip = function(callback) {
-    this.ships.forEach(callback);
-  };
-
-  ResourceLibrary.prototype.addScenery = function(entry) {
-    this.sceneries.push(entry);
-  };
-
-  ResourceLibrary.prototype.forEachScenery = function(callback) {
-    this.sceneries.forEach(callback);
+  ResourceLibrary.prototype.forEachResource = function(type, callback) {
+    if (type in this.resources) {
+      this.resources[type].forEach(callback);
+    }
   };
 
   return ResourceLibrary;

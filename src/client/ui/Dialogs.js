@@ -4,15 +4,16 @@ This is a helper object to collect all dialogs
 @module Client
 @class Dialogs
 */
-define(["ui/SplashDialog", "ui/CreateSessionDialog"],
+define(["ui/SplashDialog", "ui/CreateSessionDialog", "ui/AddPropDialog"],
 
-function(splashDialog, createSessionDialog) {
-  "use strict";
+  function(splashDialog, createSessionDialog, addPropDialog) {
+    "use strict";
 
-  var dialogs = {
-    splashDialog: splashDialog,
-    createSessionDialog: createSessionDialog
-  };
+    var dialogs = {
+      splashDialog: splashDialog,
+      createSessionDialog: createSessionDialog,
+      addPropDialog: addPropDialog
+    };
 
-  return dialogs;
-});
+    return dialogs;
+  });

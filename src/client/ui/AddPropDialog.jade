@@ -1,0 +1,23 @@
+div(class="modal-header")
+  h3 Add a prop
+
+div(class="modal-body")
+  div(class="row-fluid")
+    input(class="span12", type="text", ng-model="search.text", placeholder="Blank separated search words")
+  div(class="row-fluid")
+    tabset(class="span12")
+      tab(heading="Ship")
+        div(class="row-fluid")
+          select(class="span12", ng-model="search.selected", ng-options="prop as prop.propData.resourceUrl for prop in filteredShips", size="10")
+
+      tab(heading="Planet")
+        div(class="row-fluid")
+          select(class="span12", ng-model="search.selected", ng-options="prop as prop.propData.resourceUrl for prop in filteredPlanets", size="10")
+
+      tab(heading="Scenery")
+        div(class="row-fluid")
+          select(class="span12", ng-model="search.selected", ng-options="prop as prop.propData.resourceUrl for prop in filteredSceneries", size="10")
+
+div(class="modal-footer")
+  button(ng-click="add(search.selected)", class="btn btn-primary", ng-disabled="!search.selected") Add
+  button(ng-click="cancel()", class="btn") Cancel

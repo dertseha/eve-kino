@@ -14,7 +14,7 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
   function(q, defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
     "use strict";
 
-    var addPlanet = function(modelView, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
+    var addPlanet = function(resLibrary, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
       var arch = new PlanetArchetype({
         propType: PlanetArchetype.propType
       });
@@ -25,17 +25,7 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       arch.setHeightMap1Url(heightMap1Url);
       arch.setHeightMap2Url(heightMap2Url);
 
-      modelView.props.push(arch);
-    };
-
-    var addScenery = function(modelView, resourceUrl) {
-      var arch = new SceneryArchetype({
-        propType: SceneryArchetype.propType
-      });
-
-      arch.setResourceUrl(resourceUrl);
-
-      modelView.props.push(arch);
+      resLibrary.addResource("planet", arch);
     };
 
     var initModelView = function(modelView, controller, config) {
@@ -49,8 +39,8 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       modelView.play = function() {
         controller.play();
       };
-      modelView.addProp = function(arch) {
-        controller.addProp(arch);
+      modelView.newProp = function() {
+        controller.newProp();
       };
       modelView.setFocusOnCamera = function() {
         controller.setFocusOnCamera();
@@ -99,21 +89,6 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       modelView.selectedStar = noStar;
 
       modelView.stageProps = [];
-
-      modelView.props = [];
-
-      addPlanet(modelView, 40000002,
-        "res:/dx9/model/WorldObject/Planet/Template/Terrestrial/P_Terrestrial_61.red",
-        undefined,
-        "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial03_H.png",
-        "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial04_H.png");
-      addPlanet(modelView, 40000100,
-        "res:/dx9/model/WorldObject/Planet/Template/Gas/P_GasGiant_12.red",
-        undefined,
-        "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png",
-        "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
-
-      addScenery(modelView, "res:/dx9/model/worldobject/asteroid/zuthrine/shards/zuthrine_shard01_unmined.red");
     };
 
     var ApplicationController = function(modelView, dialogFactory, config, productionManager, mainScreen) {
@@ -134,21 +109,22 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
 
       resPromise.then(function(resLibrary) {
 
+        that.resourceLibrary = resLibrary;
+
+        addPlanet(resLibrary, 40000002,
+          "res:/dx9/model/WorldObject/Planet/Template/Terrestrial/P_Terrestrial_61.red",
+          undefined,
+          "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial03_H.png",
+          "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial04_H.png");
+        addPlanet(resLibrary, 40000100,
+          "res:/dx9/model/WorldObject/Planet/Template/Gas/P_GasGiant_12.red",
+          undefined,
+          "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png",
+          "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
+
         modelView.$apply(function() {
-          that.addPropsFromLibrary(resLibrary);
           that.showCreationDialog(resLibrary);
         });
-      });
-    };
-
-    ApplicationController.prototype.addPropsFromLibrary = function(resLibrary) {
-      var modelView = this.modelView;
-
-      resLibrary.forEachShip(function(shipEntry) {
-        modelView.props.push(shipEntry);
-      });
-      resLibrary.forEachScenery(function(sceneryEntry) {
-        modelView.props.push(sceneryEntry);
       });
     };
 
@@ -210,7 +186,7 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
         qualityOptions: productionManager.getQualityOptions()
       };
 
-      resLibrary.forEachSceneBackground(function(entry) {
+      resLibrary.forEachResource("sceneBg", function(entry) {
         dialogParams.backgrounds.push(entry);
       });
       dialogParams.backgrounds.sort(function(a, b) {
@@ -268,6 +244,19 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       };
 
       return JSON.stringify(session);
+    };
+
+    ApplicationController.prototype.newProp = function() {
+      var that = this;
+      var params = {
+        resLibrary: this.resourceLibrary
+      };
+      var dialog = uiDialogs.addPropDialog.getBuilder(this.dialogFactory, params);
+
+      dialog.open().then(function(callback) {
+        callback(that);
+      });
+
     };
 
     ApplicationController.prototype.addProp = function(arch, scriptData) {

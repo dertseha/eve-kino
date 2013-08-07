@@ -4,15 +4,16 @@ The Controller list collects all controller modules
 @module Client
 @class Controller
 */
-define(["ui/SplashDialog", "ui/CreateSessionDialog"],
+define(["ui/SplashDialog", "ui/CreateSessionDialog", "ui/AddPropDialog"],
+  function() {
+    "use strict";
 
-function(splashDialog, createSessionDialog) {
-  "use strict";
+    var controller = [];
+    var i;
 
-  var controller = [
-    splashDialog,
-    createSessionDialog
-  ];
+    for (i = 0; i < arguments.length; i++) {
+      controller.push(arguments[i]);
+    }
 
-  return controller;
-});
+    return controller;
+  });

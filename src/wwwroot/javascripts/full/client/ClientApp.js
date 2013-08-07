@@ -38,6 +38,11 @@ define('ui/UiTemplates',['jade'], function(jade) { if(jade && jade['runtime'] !=
 
 this["UiTemplates"] = this["UiTemplates"] || {};
 
+this["UiTemplates"]["AddPropDialog"] = function anonymous(locals) {
+var buf = [];
+buf.push("<div class=\"modal-header\"><h3>Add a prop</h3></div><div class=\"modal-body\"><div class=\"row-fluid\"><input type=\"text\" ng-model=\"search.text\" placeholder=\"Blank separated search words\" class=\"span12\"/></div><div class=\"row-fluid\"><tabset class=\"span12\"><tab heading=\"Ship\"><div class=\"row-fluid\"><select ng-model=\"search.selected\" ng-options=\"prop as prop.propData.resourceUrl for prop in filteredShips\" size=\"10\" class=\"span12\"></select></div></tab><tab heading=\"Planet\"><div class=\"row-fluid\"><select ng-model=\"search.selected\" ng-options=\"prop as prop.propData.resourceUrl for prop in filteredPlanets\" size=\"10\" class=\"span12\"></select></div></tab><tab heading=\"Scenery\"><div class=\"row-fluid\"><select ng-model=\"search.selected\" ng-options=\"prop as prop.propData.resourceUrl for prop in filteredSceneries\" size=\"10\" class=\"span12\"></select></div></tab></tabset></div></div><div class=\"modal-footer\"><button ng-click=\"add(search.selected)\" ng-disabled=\"!search.selected\" class=\"btn btn-primary\">Add</button><button ng-click=\"cancel()\" class=\"btn\">Cancel</button></div>");;return buf.join("");
+};
+
 this["UiTemplates"]["CreateSessionDialog"] = function anonymous(locals) {
 var buf = [];
 buf.push("<div class=\"modal-header\"><h3>Create a Session</h3><span>eve-kino v.{{version}}</span></div><div class=\"modal-body\"><tabset><tab heading=\"Background\"><div class=\"btn-group\"><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'space'\" class=\"btn\">Space</button><button type=\"button\" ng-model=\"set.type\" btn-radio=\"'chromaKey'\" class=\"btn\">Chroma Key</button></div><div class=\"row-fluid\"><div ng-show=\"(set.type == 'space')\">Select a background:<div class=\"row-fluid\"><select ng-model=\"set.selectedBackground\" ng-options=\"bg as bg.resourceUrl for bg in backgrounds\" size=\"5\" class=\"span12\"></select></div></div><div ng-show=\"(set.type == 'chromaKey')\">Pick a color (RGB values):<div data-color-input color=\"set.chromaKey.color\" on-change=\"colorInputChanged()\"></div></div></div></tab><tab heading=\"By File\"><div data-file-input=\"file\" on-change=\"readFile(file)\">Choose File</div></tab><tab heading=\"Quality\"><div ng-repeat=\"option in qualityOptions\" class=\"row-fluid\"><div class=\"span4\">{{option.title}}</div><div class=\"span8 btn-group\"><button type=\"button\" ng-repeat=\"value in option.values\" ng-model=\"selectedOptions[option.field]\" btn-radio=\"value.id\" class=\"btn\">{{value.title}}</button></div></div><div class=\"row-fluid\"><div class=\"span12\">Some of these settings are dependent on machine or resources and might not be available.</div></div></tab></tabset></div><div class=\"modal-footer\"><button ng-click=\"create(set.type)\" ng-disabled=\"!canBeCreated()\" class=\"btn btn-primary\">Create</button></div>");;return buf.join("");
@@ -309,23 +314,144 @@ define('ui/CreateSessionDialog',["version", "ui/UiTemplates", "util/validators/S
     return dialog;
   });
 /**
+This dialog is helping to add a prop to the scene
+
+@module Client
+@class AddPropDialog
+*/
+define('ui/AddPropDialog',["ui/UiTemplates"],
+
+  function(templates) {
+    
+
+    var name = "AddPropDialogController";
+    var template = templates.AddPropDialog();
+
+    var Controller = function($scope, dialog, model) {
+      var that = this;
+
+      this.resourceLibrary = model.resLibrary;
+      this.modelView = $scope;
+
+      $scope.selected = null;
+      $scope.search = {
+        text: "",
+        selected: null
+      };
+      $scope.filteredShips = [];
+      $scope.filteredPlanets = [];
+      $scope.filteredScenery = [];
+
+      $scope.$watch("search.text", function(newValue) {
+        that.updateFiltered(newValue);
+      });
+
+
+      $scope.cancel = function() {
+        var callback = function() {};
+
+        dialog.close(callback);
+      };
+
+      $scope.add = function(archetype) {
+        var callback = function(listener) {
+          listener.addProp(archetype);
+        };
+
+        dialog.close(callback);
+      };
+
+      this.updateFiltered("");
+    };
+
+    Controller.prototype.updateFiltered = function(filterText) {
+      var modelView = this.modelView;
+      var filteredShips = modelView.filteredShips = [];
+      var filteredPlanets = modelView.filteredPlanets = [];
+      var filteredSceneries = modelView.filteredSceneries = [];
+      var filters = filterText.toLowerCase().split(" ");
+      var predicate = function(arch) {
+        var resourceUrl = arch.propData.resourceUrl.toLowerCase();
+        var valid = true;
+
+        filters.forEach(function(filter) {
+          if (resourceUrl.indexOf(filter) < 0) {
+            valid = false;
+          }
+        });
+
+        return valid;
+      };
+
+      this.resourceLibrary.forEachResource("ship", function(arch) {
+        if (predicate(arch)) {
+          filteredShips.push(arch);
+        }
+      });
+      this.resourceLibrary.forEachResource("planet", function(arch) {
+        if (predicate(arch)) {
+          filteredPlanets.push(arch);
+        }
+      });
+      this.resourceLibrary.forEachResource("scenery", function(arch) {
+        if (predicate(arch)) {
+          filteredSceneries.push(arch);
+        }
+      });
+    };
+
+    var register = function(module) {
+      module.controller(name, ["$scope", "dialog", "model", Controller]);
+    };
+
+    var getBuilder = function(dialogFactory, model) {
+      var options = {
+        backdrop: true,
+        backdropFade: false,
+        backdropClick: false,
+        keyboard: true,
+
+        controller: name,
+        template: template,
+        resolve: {
+          model: function() {
+            return model;
+          }
+        }
+      };
+
+      return dialogFactory.dialog(options);
+    };
+
+    var dialog = {
+      controller: Controller,
+      template: template,
+
+      register: register,
+      getBuilder: getBuilder
+    };
+
+    return dialog;
+  });
+/**
 This is a helper object to collect all dialogs
 
 @module Client
 @class Dialogs
 */
-define('ui/Dialogs',["ui/SplashDialog", "ui/CreateSessionDialog"],
+define('ui/Dialogs',["ui/SplashDialog", "ui/CreateSessionDialog", "ui/AddPropDialog"],
 
-function(splashDialog, createSessionDialog) {
-  
+  function(splashDialog, createSessionDialog, addPropDialog) {
+    
 
-  var dialogs = {
-    splashDialog: splashDialog,
-    createSessionDialog: createSessionDialog
-  };
+    var dialogs = {
+      splashDialog: splashDialog,
+      createSessionDialog: createSessionDialog,
+      addPropDialog: addPropDialog
+    };
 
-  return dialogs;
-});
+    return dialogs;
+  });
 /**
 The helper is a static object providing some helper constants and functions
 for GL related topics.
@@ -1432,7 +1558,7 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
   function(q, defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
     
 
-    var addPlanet = function(modelView, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
+    var addPlanet = function(resLibrary, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
       var arch = new PlanetArchetype({
         propType: PlanetArchetype.propType
       });
@@ -1443,17 +1569,7 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       arch.setHeightMap1Url(heightMap1Url);
       arch.setHeightMap2Url(heightMap2Url);
 
-      modelView.props.push(arch);
-    };
-
-    var addScenery = function(modelView, resourceUrl) {
-      var arch = new SceneryArchetype({
-        propType: SceneryArchetype.propType
-      });
-
-      arch.setResourceUrl(resourceUrl);
-
-      modelView.props.push(arch);
+      resLibrary.addResource("planet", arch);
     };
 
     var initModelView = function(modelView, controller, config) {
@@ -1467,8 +1583,8 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       modelView.play = function() {
         controller.play();
       };
-      modelView.addProp = function(arch) {
-        controller.addProp(arch);
+      modelView.newProp = function() {
+        controller.newProp();
       };
       modelView.setFocusOnCamera = function() {
         controller.setFocusOnCamera();
@@ -1517,21 +1633,6 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       modelView.selectedStar = noStar;
 
       modelView.stageProps = [];
-
-      modelView.props = [];
-
-      addPlanet(modelView, 40000002,
-        "res:/dx9/model/WorldObject/Planet/Template/Terrestrial/P_Terrestrial_61.red",
-        undefined,
-        "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial03_H.png",
-        "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial04_H.png");
-      addPlanet(modelView, 40000100,
-        "res:/dx9/model/WorldObject/Planet/Template/Gas/P_GasGiant_12.red",
-        undefined,
-        "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png",
-        "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
-
-      addScenery(modelView, "res:/dx9/model/worldobject/asteroid/zuthrine/shards/zuthrine_shard01_unmined.red");
     };
 
     var ApplicationController = function(modelView, dialogFactory, config, productionManager, mainScreen) {
@@ -1552,21 +1653,22 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
 
       resPromise.then(function(resLibrary) {
 
+        that.resourceLibrary = resLibrary;
+
+        addPlanet(resLibrary, 40000002,
+          "res:/dx9/model/WorldObject/Planet/Template/Terrestrial/P_Terrestrial_61.red",
+          undefined,
+          "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial03_H.png",
+          "res:/dx9/model/worldobject/planet/Terrestrial/Terrestrial04_H.png");
+        addPlanet(resLibrary, 40000100,
+          "res:/dx9/model/WorldObject/Planet/Template/Gas/P_GasGiant_12.red",
+          undefined,
+          "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant01_D.png",
+          "res:/dx9/model/worldobject/planet/Gasgiant/GasGiant03_D.png");
+
         modelView.$apply(function() {
-          that.addPropsFromLibrary(resLibrary);
           that.showCreationDialog(resLibrary);
         });
-      });
-    };
-
-    ApplicationController.prototype.addPropsFromLibrary = function(resLibrary) {
-      var modelView = this.modelView;
-
-      resLibrary.forEachShip(function(shipEntry) {
-        modelView.props.push(shipEntry);
-      });
-      resLibrary.forEachScenery(function(sceneryEntry) {
-        modelView.props.push(sceneryEntry);
       });
     };
 
@@ -1628,7 +1730,7 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
         qualityOptions: productionManager.getQualityOptions()
       };
 
-      resLibrary.forEachSceneBackground(function(entry) {
+      resLibrary.forEachResource("sceneBg", function(entry) {
         dialogParams.backgrounds.push(entry);
       });
       dialogParams.backgrounds.sort(function(a, b) {
@@ -1686,6 +1788,19 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       };
 
       return JSON.stringify(session);
+    };
+
+    ApplicationController.prototype.newProp = function() {
+      var that = this;
+      var params = {
+        resLibrary: this.resourceLibrary
+      };
+      var dialog = uiDialogs.addPropDialog.getBuilder(this.dialogFactory, params);
+
+      dialog.open().then(function(callback) {
+        callback(that);
+      });
+
     };
 
     ApplicationController.prototype.addProp = function(arch, scriptData) {
@@ -2323,37 +2438,27 @@ define('production/ResourceLibrary',[], function() {
 
   var ResourceLibrary = function(namespace) {
     this.namespace = namespace;
-    this.sceneBackgrounds = [];
-    this.ships = [];
-    this.sceneries = [];
+
+    this.resources = {};
   };
 
   ResourceLibrary.prototype.getNamespace = function() {
     return this.namespace;
   };
 
-  ResourceLibrary.prototype.addSceneBackground = function(entry) {
-    this.sceneBackgrounds.push(entry);
+  ResourceLibrary.prototype.addResource = function(type, entry) {
+    var list = this.resources[type];
+
+    if (!list) {
+      this.resources[type] = list = [];
+    }
+    list.push(entry);
   };
 
-  ResourceLibrary.prototype.forEachSceneBackground = function(callback) {
-    this.sceneBackgrounds.forEach(callback);
-  };
-
-  ResourceLibrary.prototype.addShip = function(entry) {
-    this.ships.push(entry);
-  };
-
-  ResourceLibrary.prototype.forEachShip = function(callback) {
-    this.ships.forEach(callback);
-  };
-
-  ResourceLibrary.prototype.addScenery = function(entry) {
-    this.sceneries.push(entry);
-  };
-
-  ResourceLibrary.prototype.forEachScenery = function(callback) {
-    this.sceneries.forEach(callback);
+  ResourceLibrary.prototype.forEachResource = function(type, callback) {
+    if (type in this.resources) {
+      this.resources[type].forEach(callback);
+    }
   };
 
   return ResourceLibrary;
@@ -2505,15 +2610,15 @@ define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource",
         standardResourceLibrary = new ResourceLibrary(ProductionManager.STANDARD_RES_NAMESPACE);
         forEachCcpStandardId(function(id, entry) {
           if (isSceneBackground(entry)) {
-            standardResourceLibrary.addSceneBackground(createSceneBackgroundEntry(entry));
+            standardResourceLibrary.addResource("sceneBg", createSceneBackgroundEntry(entry));
           } else if (isShip(entry)) {
-            standardResourceLibrary.addShip(createShipArchetype(entry));
+            standardResourceLibrary.addResource("ship", createShipArchetype(entry));
           } else if (isPlanet(entry)) {
             // TODO
           } else if (isTurret(entry)) {
             // TODO
           } else if (isObject(entry)) {
-            standardResourceLibrary.addScenery(createSceneryArchetype(entry));
+            standardResourceLibrary.addResource("scenery", createSceneryArchetype(entry));
           }
         });
       }
@@ -2727,18 +2832,19 @@ The Controller list collects all controller modules
 @module Client
 @class Controller
 */
-define('ui/ControllerList',["ui/SplashDialog", "ui/CreateSessionDialog"],
+define('ui/ControllerList',["ui/SplashDialog", "ui/CreateSessionDialog", "ui/AddPropDialog"],
+  function() {
+    
 
-function(splashDialog, createSessionDialog) {
-  
+    var controller = [];
+    var i;
 
-  var controller = [
-    splashDialog,
-    createSessionDialog
-  ];
+    for (i = 0; i < arguments.length; i++) {
+      controller.push(arguments[i]);
+    }
 
-  return controller;
-});
+    return controller;
+  });
 /**
 The helper is a static object providing some helper constants and functions
 for browser access.

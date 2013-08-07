@@ -145,15 +145,15 @@ define(["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/
         standardResourceLibrary = new ResourceLibrary(ProductionManager.STANDARD_RES_NAMESPACE);
         forEachCcpStandardId(function(id, entry) {
           if (isSceneBackground(entry)) {
-            standardResourceLibrary.addSceneBackground(createSceneBackgroundEntry(entry));
+            standardResourceLibrary.addResource("sceneBg", createSceneBackgroundEntry(entry));
           } else if (isShip(entry)) {
-            standardResourceLibrary.addShip(createShipArchetype(entry));
+            standardResourceLibrary.addResource("ship", createShipArchetype(entry));
           } else if (isPlanet(entry)) {
             // TODO
           } else if (isTurret(entry)) {
             // TODO
           } else if (isObject(entry)) {
-            standardResourceLibrary.addScenery(createSceneryArchetype(entry));
+            standardResourceLibrary.addResource("scenery", createSceneryArchetype(entry));
           }
         });
       }
