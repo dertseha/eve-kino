@@ -8,7 +8,7 @@ define([], function() {
   "use strict";
 
   var TimeWatch = function(initTime) {
-    this.reset(initTime);
+    this.reset(initTime || 0);
   };
 
   /**

@@ -528,105 +528,232 @@ define('util/GlHelper',["lib/gl-matrix"], function(glMatrix) {
 
   return helper;
 });
-/* global console */
+/**
+The actuator is a time-bound "motor" that tries to achieve a certain value
+out of a range of 0..1 within a certain time.
+The motor moves from one extreme to the other using the maximum time.
+
+@module Client
+@class Actuator
+*/
+define('simulation/Actuator',[], function() {
+  
+
+  var Actuator = function(timeWatch, timeSpan) {
+    this.timeWatch = timeWatch;
+    this.timeSpan = timeSpan;
+
+    this.currentValue = 0.0;
+  };
+
+  /**
+   * @method getCurrentValue
+   * @return {Number} the current value of the actuator
+   */
+  Actuator.prototype.getCurrentValue = function() {
+    return this.currentValue;
+  };
+
+  /**
+   * @method moveTo
+   * @param {Number} dest the destination to move to
+   * @return {Number} the current value of the actuator
+   */
+  Actuator.prototype.moveTo = function(dest) {
+    var timePassed = this.timeWatch.getDelta();
+    var distance = timePassed / this.timeSpan;
+    var missing = Math.abs(this.currentValue - dest);
+
+    if (distance < missing) {
+      this.currentValue += (dest >= this.currentValue) ? distance : -distance;
+    } else {
+      this.currentValue = dest;
+    }
+
+    return this.currentValue;
+  };
+
+  return Actuator;
+});
+/**
+The simulated thruster provides velocity according to a function over time.
+(Being code, everything is 'simulated', this one is meant to be that if it
+were real, it would provide thrust according a table, defying physics)
+
+@module Client
+@class SimulatedThruster
+*/
+define('simulation/SimulatedThruster',[], function() {
+  
+
+  /**
+   * @constructor
+   * @param {Actuator} actuator for the time based index
+   * @param {Number} maxSpeed the maximum speed (thrust)
+   * @param {Function} velocityTimeFunction a function taking a time index returning speed
+   */
+  var SimulatedThruster = function(actuator, maxSpeed, velocityTimeFunction) {
+    this.actuator = actuator;
+    this.maxSpeed = maxSpeed;
+    this.velocityTimeFunction = velocityTimeFunction;
+  };
+
+  /**
+   * @method getSpeed
+   * @param {Number} power [0..1] put into the thruster
+   * @return {Number} the speed the thruster provides
+   */
+  SimulatedThruster.prototype.getSpeed = function(power) {
+    var time = this.actuator.moveTo(power);
+    var speed = this.velocityTimeFunction(time);
+
+    return speed * this.maxSpeed;
+  };
+
+  return SimulatedThruster;
+});
 /**
 An animator is responsible for updating the state of a prop
 
 @module Client
 @class Animator
 */
-define('production/Animator',["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
-  
+define('production/Animator',["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/SimulatedThruster"],
+  function(glMatrix, helper, Actuator, SimulatedThruster) {
+    
 
-  var tempQuat = glMatrix.quat4.create();
-  var tempVec3 = glMatrix.vec3.create();
+    var tempQuat = glMatrix.quat4.create();
+    var tempVec3 = glMatrix.vec3.create();
 
-  var emptyScript = {
-    getFrameData: function() {
-      return null;
-    }
-  };
+    var emptyScript = {
+      getFrameData: function() {
+        return null;
+      }
+    };
 
-  var rotateModelOrientation = function(dest, roll, pitch, yaw) {
-    glMatrix.quat4.fromAngleAxis(roll * helper.MODEL_ROTATION_ROLL_CLOCKWISE, helper.MODEL_VECTOR_FORWARD, tempQuat);
-    glMatrix.quat4.multiply(dest, tempQuat, dest);
-    glMatrix.quat4.fromAngleAxis(pitch * helper.MODEL_ROTATION_PITCH_UP, helper.MODEL_VECTOR_RIGHT, tempQuat);
-    glMatrix.quat4.multiply(dest, tempQuat, dest);
-    glMatrix.quat4.fromAngleAxis(yaw * helper.MODEL_ROTATION_YAW_RIGHT, helper.MODEL_VECTOR_UP, tempQuat);
-    glMatrix.quat4.multiply(dest, tempQuat, dest);
-  };
+    var rotateModelOrientation = function(dest, roll, pitch, yaw) {
+      glMatrix.quat4.fromAngleAxis(roll * helper.MODEL_ROTATION_ROLL_CLOCKWISE, helper.MODEL_VECTOR_FORWARD, tempQuat);
+      glMatrix.quat4.multiply(dest, tempQuat, dest);
+      glMatrix.quat4.fromAngleAxis(pitch * helper.MODEL_ROTATION_PITCH_UP, helper.MODEL_VECTOR_RIGHT, tempQuat);
+      glMatrix.quat4.multiply(dest, tempQuat, dest);
+      glMatrix.quat4.fromAngleAxis(yaw * helper.MODEL_ROTATION_YAW_RIGHT, helper.MODEL_VECTOR_UP, tempQuat);
+      glMatrix.quat4.multiply(dest, tempQuat, dest);
+    };
 
-  var Animator = function(prop) {
-    this.prop = prop;
-    this.script = emptyScript;
+    var Animator = function(prop, timeWatch) {
+      var that = this;
 
-    this.commandChannel = null;
-    this.lastState = null;
-  };
+      var addAgility = function(name, maximum, time) {
+        that.agility[name] = {
+          maximum: maximum,
+          time: time
+        };
+      };
 
-  Animator.prototype.setScript = function(script) {
-    this.script = script;
-  };
+      this.prop = prop;
+      this.script = emptyScript;
 
-  Animator.prototype.getScript = function() {
-    return this.script;
-  };
+      this.commandChannel = null;
+      this.lastState = null;
 
-  Animator.prototype.getProp = function() {
-    return this.prop;
-  };
+      this.timeWatch = timeWatch;
+      this.agility = {};
+      this.thrusters = {};
 
-  Animator.prototype.setCommandChannel = function(commandChannel) {
-    this.commandChannel = commandChannel;
-  };
+      addAgility("forward", 300, 0.5);
+      addAgility("navigation", 100, 0.5);
+      addAgility("rotation", 2, 0.5);
 
-  Animator.prototype.resetToRecording = function() {
-    var lastState = this.prop.getStateData(this.lastState);
-    var resetState = this.script.getFrameData() || lastState;
+      this.createThruster("moveForward", "forward");
+      ["moveBackward", "moveLeft", "moveRight", "moveUp", "moveDown"].forEach(function(direction) {
+        that.createThruster(direction, "navigation");
+      });
+      ["rollClockwise", "rollCounter", "pitchUp", "pitchDown", "yawLeft", "yawRight"].forEach(function(direction) {
+        that.createThruster(direction, "rotation");
+      });
+    };
 
-    this.prop.setStateData(resetState);
-  };
+    Animator.prototype.createThruster = function(thrusterName, agilityName) {
+      var entry = this.agility[agilityName];
+      var actuator = new Actuator(this.timeWatch, entry.time);
+      var velocityTimeFunction = function(time) {
+        return time;
+      };
+      var thruster = new SimulatedThruster(actuator, entry.maximum, velocityTimeFunction);
 
-  Animator.prototype.update = function() {
-    var lastState = this.prop.getStateData(this.lastState);
-    var newState = this.prop.getStateData();
-    var recordedState = this.script.getFrameData() || newState;
+      this.thrusters[thrusterName] = thruster;
+    };
 
-    if (this.commandChannel) {
-      newState = this.updateByCommands(newState, lastState, recordedState);
-    } else {
-      newState = recordedState;
-    }
+    Animator.prototype.setScript = function(script) {
+      this.script = script;
+    };
 
-    this.prop.setStateData(newState);
-    this.script.setFrameData(newState);
-    this.lastState = lastState;
-  };
+    Animator.prototype.getScript = function() {
+      return this.script;
+    };
 
-  Animator.prototype.updateByCommands = function(newState, lastState, recordedState) {
-    var commands = this.commandChannel.getCommands();
-    var roll = (commands.rollClockwise - commands.rollCounter) * 0.02;
-    var pitch = (commands.pitchUp - commands.pitchDown) * 0.02;
-    var yaw = (commands.yawRight - commands.yawLeft) * 0.02;
-    var up = (commands.moveUp - commands.moveDown);
-    var right = (commands.moveRight - commands.moveLeft);
-    var forward = (commands.moveForward - commands.moveBackward);
+    Animator.prototype.getProp = function() {
+      return this.prop;
+    };
 
-    rotateModelOrientation(newState.rotation, roll, pitch, yaw);
+    Animator.prototype.setCommandChannel = function(commandChannel) {
+      this.commandChannel = commandChannel;
+    };
 
-    tempVec3[0] = right * helper.MODEL_DIRECTION_RIGHT;
-    tempVec3[1] = up * helper.MODEL_DIRECTION_UP;
-    tempVec3[2] = forward * helper.MODEL_DIRECTION_FORWARD * 6.6; // ~200 m/s at 60fps
-    glMatrix.quat4.multiplyVec3(newState.rotation, tempVec3);
-    newState.position[0] += tempVec3[0];
-    newState.position[1] += tempVec3[1];
-    newState.position[2] += tempVec3[2];
+    Animator.prototype.resetToRecording = function() {
+      var lastState = this.prop.getStateData(this.lastState);
+      var resetState = this.script.getFrameData() || lastState;
 
-    return newState;
-  };
+      this.prop.setStateData(resetState);
+    };
 
-  return Animator;
-});
+    Animator.prototype.update = function() {
+      var lastState = this.prop.getStateData(this.lastState);
+      var newState = this.prop.getStateData();
+      var recordedState = this.script.getFrameData() || newState;
+
+      if (this.commandChannel) {
+        newState = this.updateByCommands(newState, lastState, recordedState);
+      } else {
+        newState = recordedState;
+      }
+
+      this.prop.setStateData(newState);
+      this.script.setFrameData(newState);
+      this.lastState = lastState;
+    };
+
+    Animator.prototype.updateByCommands = function(newState, lastState, recordedState) {
+      var timeDelta = this.timeWatch.getDelta();
+      var commands = this.commandChannel.getCommands();
+      var roll = (this.thrusters.rollClockwise.getSpeed(commands.rollClockwise) -
+        this.thrusters.rollCounter.getSpeed(commands.rollCounter)) * timeDelta;
+      var pitch = (this.thrusters.pitchUp.getSpeed(commands.pitchUp) -
+        this.thrusters.pitchDown.getSpeed(commands.pitchDown)) * timeDelta;
+      var yaw = (this.thrusters.yawRight.getSpeed(commands.yawRight) -
+        this.thrusters.yawLeft.getSpeed(commands.yawLeft)) * timeDelta;
+      var up = (this.thrusters.moveUp.getSpeed(commands.moveUp) -
+        this.thrusters.moveDown.getSpeed(commands.moveDown)) * timeDelta;
+      var right = (this.thrusters.moveRight.getSpeed(commands.moveRight) -
+        this.thrusters.moveLeft.getSpeed(commands.moveLeft)) * timeDelta;
+      var forward = (this.thrusters.moveForward.getSpeed(commands.moveForward) -
+        this.thrusters.moveBackward.getSpeed(commands.moveBackward)) * timeDelta;
+
+      rotateModelOrientation(newState.rotation, roll, pitch, yaw);
+
+      tempVec3[0] = right * helper.MODEL_DIRECTION_RIGHT;
+      tempVec3[1] = up * helper.MODEL_DIRECTION_UP;
+      tempVec3[2] = forward * helper.MODEL_DIRECTION_FORWARD;
+      glMatrix.quat4.multiplyVec3(newState.rotation, tempVec3);
+      newState.position[0] += tempVec3[0];
+      newState.position[1] += tempVec3[1];
+      newState.position[2] += tempVec3[2];
+
+      return newState;
+    };
+
+    return Animator;
+  });
 /**
 The Stage Manager updates the stage according to the script and/or input
 
@@ -636,8 +763,9 @@ The Stage Manager updates the stage according to the script and/or input
 define('production/StageManager',["production/Animator"], function(Animator) {
   
 
-  var StageManager = function(stage) {
+  var StageManager = function(stage, timeWatch) {
     this.stage = stage;
+    this.timeWatch = timeWatch;
 
     this.animators = [];
   };
@@ -673,7 +801,7 @@ define('production/StageManager',["production/Animator"], function(Animator) {
     var animator = this.findAnimatorByProp(prop);
 
     if (!animator) {
-      animator = new Animator(prop);
+      animator = new Animator(prop, this.timeWatch);
       this.animators.push(animator);
     }
 
@@ -859,161 +987,205 @@ A camera operator handles a camera when directed to
 @module Client
 @class Director
 */
-define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper"], function(glMatrix, helper) {
-  
+define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/SimulatedThruster"],
+  function(glMatrix, helper, Actuator, SimulatedThruster) {
+    
 
-  var actionNames = [
-    "pitchUp", "pitchDown", "rollClockwise", "rollCounter", "yawRight", "yawLeft",
-    "moveUp", "moveDown", "moveForward", "moveBackward", "moveRight", "moveLeft"
-  ];
+    var actionNames = [
+      "pitchUp", "pitchDown", "rollClockwise", "rollCounter", "yawRight", "yawLeft",
+      "moveUp", "moveDown", "moveForward", "moveBackward", "moveRight", "moveLeft"
+    ];
 
-  var tempVec3 = glMatrix.vec3.create();
+    var tempVec3 = glMatrix.vec3.create();
 
-  var rotateViewOrientation = (function() {
-    var tempQuat = glMatrix.quat4.create();
+    var rotateViewOrientation = (function() {
+      var tempQuat = glMatrix.quat4.create();
 
-    return function(dest, roll, pitch, yaw) {
-      glMatrix.quat4.fromAngleAxis(roll * helper.VIEW_ROTATION_ROLL_CLOCKWISE, helper.VIEW_VECTOR_FORWARD, tempQuat);
-      glMatrix.quat4.multiply(tempQuat, dest, dest);
-      glMatrix.quat4.fromAngleAxis(pitch * helper.VIEW_ROTATION_PITCH_UP, helper.VIEW_VECTOR_RIGHT, tempQuat);
-      glMatrix.quat4.multiply(tempQuat, dest, dest);
-      glMatrix.quat4.fromAngleAxis(yaw * helper.VIEW_ROTATION_YAW_RIGHT, helper.VIEW_VECTOR_UP, tempQuat);
-      glMatrix.quat4.multiply(tempQuat, dest, dest);
+      return function(dest, roll, pitch, yaw) {
+        glMatrix.quat4.fromAngleAxis(roll * helper.VIEW_ROTATION_ROLL_CLOCKWISE, helper.VIEW_VECTOR_FORWARD, tempQuat);
+        glMatrix.quat4.multiply(tempQuat, dest, dest);
+        glMatrix.quat4.fromAngleAxis(pitch * helper.VIEW_ROTATION_PITCH_UP, helper.VIEW_VECTOR_RIGHT, tempQuat);
+        glMatrix.quat4.multiply(tempQuat, dest, dest);
+        glMatrix.quat4.fromAngleAxis(yaw * helper.VIEW_ROTATION_YAW_RIGHT, helper.VIEW_VECTOR_UP, tempQuat);
+        glMatrix.quat4.multiply(tempQuat, dest, dest);
+      };
+    })();
+
+    var getModelRotationFromViewRotation = function(viewRotation, result) {
+      glMatrix.quat4.set(viewRotation, result);
+      rotateViewOrientation(result, 0, 0, -Math.PI);
+      glMatrix.quat4.inverse(result);
     };
-  })();
 
-  var getModelRotationFromViewRotation = function(viewRotation, result) {
-    glMatrix.quat4.set(viewRotation, result);
-    rotateViewOrientation(result, 0, 0, -Math.PI);
-    glMatrix.quat4.inverse(result);
-  };
+    var rotateModelVectorByViewRotation = (function() {
+      var tempQuat = glMatrix.quat4.create();
 
-  var rotateModelVectorByViewRotation = (function() {
-    var tempQuat = glMatrix.quat4.create();
+      return function(viewRotation, modelVector) {
+        getModelRotationFromViewRotation(viewRotation, tempQuat);
+        glMatrix.quat4.multiplyVec3(tempQuat, modelVector);
 
-    return function(viewRotation, modelVector) {
-      getModelRotationFromViewRotation(viewRotation, tempQuat);
-      glMatrix.quat4.multiplyVec3(tempQuat, modelVector);
+        return modelVector;
+      };
+    })();
 
-      return modelVector;
+    var CameraOperator = function(camera, shotList, timeWatch) {
+      var that = this;
+
+      var addAgility = function(name, maximum, time) {
+        that.agility[name] = {
+          maximum: maximum,
+          time: time
+        };
+      };
+
+      this.camera = camera;
+      this.shotList = shotList;
+
+      this.commandChannel = null;
+
+      this.timeWatch = timeWatch;
+      this.agility = {};
+      this.thrusters = {};
+
+      addAgility("forward", 300, 0.5);
+      addAgility("navigation", 100, 0.5);
+      addAgility("rotation", 2, 0.5);
+
+      this.createThruster("moveForward", "forward");
+      ["moveBackward", "moveLeft", "moveRight", "moveUp", "moveDown"].forEach(function(direction) {
+        that.createThruster(direction, "navigation");
+      });
+      ["rollClockwise", "rollCounter", "pitchUp", "pitchDown", "yawLeft", "yawRight"].forEach(function(direction) {
+        that.createThruster(direction, "rotation");
+      });
+
+      /**
+       * @private
+       * @property lastState buffer object to avoid creating new ones each frame
+       */
+      this.lastState = null;
     };
-  })();
 
-  var CameraOperator = function(camera, shotList) {
-    this.camera = camera;
-    this.shotList = shotList;
+    CameraOperator.getActionNames = function() {
+      return actionNames.slice(0);
+    };
 
-    this.commandChannel = null;
+    CameraOperator.prototype.createThruster = function(thrusterName, agilityName) {
+      var entry = this.agility[agilityName];
+      var actuator = new Actuator(this.timeWatch, entry.time);
+      var velocityTimeFunction = function(time) {
+        return time;
+      };
+      var thruster = new SimulatedThruster(actuator, entry.maximum, velocityTimeFunction);
 
-    /**
-      @private
-      @property lastState buffer object to avoid creating new ones each frame
-    */
-    this.lastState = null;
-  };
+      this.thrusters[thrusterName] = thruster;
+    };
 
-  CameraOperator.getActionNames = function() {
-    return actionNames.slice(0);
-  };
+    CameraOperator.prototype.getShotList = function() {
+      return this.shotList;
+    };
 
-  CameraOperator.prototype.getShotList = function() {
-    return this.shotList;
-  };
+    CameraOperator.prototype.setCommandChannel = function(commandChannel) {
+      this.commandChannel = commandChannel;
+    };
 
-  CameraOperator.prototype.setCommandChannel = function(commandChannel) {
-    this.commandChannel = commandChannel;
-  };
+    CameraOperator.prototype.setChaseObject = function(object) {
+      this.chaseObject = object;
+      if (!this.chaseObject) {
+        this.resetToRecording();
+      }
+    };
 
-  CameraOperator.prototype.setChaseObject = function(object) {
-    this.chaseObject = object;
-    if (!this.chaseObject) {
-      this.resetToRecording();
-    }
-  };
+    CameraOperator.prototype.resetToRecording = function() {
+      var camera = this.camera;
+      var lastState = camera.getStateData(this.lastState);
+      var resetState = this.shotList.getFrameData() || lastState;
 
-  CameraOperator.prototype.resetToRecording = function() {
-    var camera = this.camera;
-    var lastState = camera.getStateData(this.lastState);
-    var resetState = this.shotList.getFrameData() || lastState;
+      camera.setStateData(resetState);
+    };
 
-    camera.setStateData(resetState);
-  };
+    CameraOperator.prototype.placeObjectInFrontOfCamera = function(object, distance) {
+      var objectState = object.getStateData();
+      var cameraState = this.camera.getStateData();
+      var offset = distance > 10.0 ? distance : 10.0;
 
-  CameraOperator.prototype.placeObjectInFrontOfCamera = function(object, distance) {
-    var objectState = object.getStateData();
-    var cameraState = this.camera.getStateData();
-    var offset = distance > 10.0 ? distance : 10.0;
+      // align objects rotation to that of camera
+      getModelRotationFromViewRotation(cameraState.rotation, objectState.rotation);
+      // position object in front
+      objectState.position = [0, 0, offset];
+      glMatrix.quat4.multiplyVec3(objectState.rotation, objectState.position);
+      glMatrix.vec3.subtract(objectState.position, cameraState.position);
 
-    // align objects rotation to that of camera
-    getModelRotationFromViewRotation(cameraState.rotation, objectState.rotation);
-    // position object in front
-    objectState.position = [0, 0, offset];
-    glMatrix.quat4.multiplyVec3(objectState.rotation, objectState.position);
-    glMatrix.vec3.subtract(objectState.position, cameraState.position);
+      object.setStateData(objectState);
+    };
 
-    object.setStateData(objectState);
-  };
+    CameraOperator.prototype.updateCamera = function() {
+      var camera = this.camera;
+      var lastState = camera.getStateData(this.lastState);
+      var newState = camera.getStateData();
+      var recordedState = this.shotList.getFrameData() || newState;
 
-  CameraOperator.prototype.updateCamera = function() {
-    var camera = this.camera;
-    var lastState = camera.getStateData(this.lastState);
-    var newState = camera.getStateData();
-    var recordedState = this.shotList.getFrameData() || newState;
+      if (this.chaseObject) {
+        newState = this.updateByChase(newState, lastState);
+      } else if (this.commandChannel) {
+        newState = this.updateByCommands(newState, lastState, recordedState);
+      } else {
+        newState = recordedState;
+      }
 
-    if (this.chaseObject) {
-      newState = this.updateByChase(newState, lastState);
-    } else if (this.commandChannel) {
-      newState = this.updateByCommands(newState, lastState, recordedState);
-    } else {
-      newState = recordedState;
-    }
+      camera.setStateData(newState);
+      this.shotList.setFrameData(newState);
+      this.lastState = lastState;
+    };
 
-    camera.setStateData(newState);
-    this.shotList.setFrameData(newState);
-    this.lastState = lastState;
-  };
+    CameraOperator.prototype.updateByChase = function(newState, lastState) {
+      var chaseData = this.chaseObject.getStateData();
+      var radius = this.chaseObject.getBoundingSphereRadius();
+      var backDistance = -10 - radius * 2.0;
 
-  CameraOperator.prototype.updateByChase = function(newState, lastState) {
-    var chaseData = this.chaseObject.getStateData();
-    var radius = this.chaseObject.getBoundingSphereRadius();
-    var backDistance = -10 - radius * 2.0;
+      glMatrix.vec3.negate(chaseData.position, newState.position);
 
-    glMatrix.vec3.negate(chaseData.position, newState.position);
+      glMatrix.quat4.set(chaseData.rotation, newState.rotation);
+      glMatrix.quat4.inverse(newState.rotation);
+      rotateViewOrientation(newState.rotation, 0, helper.degreeToRad(-1.0) * helper.VIEW_ROTATION_PITCH_UP, Math.PI);
 
-    glMatrix.quat4.set(chaseData.rotation, newState.rotation);
-    glMatrix.quat4.inverse(newState.rotation);
-    rotateViewOrientation(newState.rotation, 0, helper.degreeToRad(-1.0) * helper.VIEW_ROTATION_PITCH_UP, Math.PI);
+      glMatrix.vec3.set([0, -radius * 0.5, backDistance], newState.viewOffset);
 
-    glMatrix.vec3.set([0, -radius * 0.5, backDistance], newState.viewOffset);
+      return newState;
+    };
 
-    return newState;
-  };
+    CameraOperator.prototype.updateByCommands = function(newState, lastState, recordedState) {
+      var timeDelta = this.timeWatch.getDelta();
+      var commands = this.commandChannel.getCommands();
+      var roll = (this.thrusters.rollClockwise.getSpeed(commands.rollClockwise) -
+        this.thrusters.rollCounter.getSpeed(commands.rollCounter)) * timeDelta;
+      var pitch = (this.thrusters.pitchUp.getSpeed(commands.pitchUp) -
+        this.thrusters.pitchDown.getSpeed(commands.pitchDown)) * timeDelta;
+      var yaw = (this.thrusters.yawRight.getSpeed(commands.yawRight) -
+        this.thrusters.yawLeft.getSpeed(commands.yawLeft)) * timeDelta;
+      var up = (this.thrusters.moveUp.getSpeed(commands.moveUp) -
+        this.thrusters.moveDown.getSpeed(commands.moveDown)) * timeDelta;
+      var right = (this.thrusters.moveRight.getSpeed(commands.moveRight) -
+        this.thrusters.moveLeft.getSpeed(commands.moveLeft)) * timeDelta;
+      var forward = (this.thrusters.moveForward.getSpeed(commands.moveForward) -
+        this.thrusters.moveBackward.getSpeed(commands.moveBackward)) * timeDelta;
 
-  CameraOperator.prototype.updateByCommands = function(newState, lastState, recordedState) {
-    var commands = this.commandChannel.getCommands();
-    var roll = (commands.rollClockwise - commands.rollCounter) * 0.02;
-    var pitch = (commands.pitchUp - commands.pitchDown) * 0.02;
-    var yaw = (commands.yawRight - commands.yawLeft) * 0.02;
-    var up = (commands.moveUp - commands.moveDown);
-    var right = (commands.moveRight - commands.moveLeft);
-    var forward = (commands.moveForward - commands.moveBackward);
+      rotateViewOrientation(newState.rotation, roll, pitch, yaw);
 
-    rotateViewOrientation(newState.rotation, roll, pitch, yaw);
+      tempVec3[0] = right * helper.VIEW_DIRECTION_RIGHT;
+      tempVec3[1] = up * helper.VIEW_DIRECTION_UP;
+      tempVec3[2] = forward * helper.VIEW_DIRECTION_FORWARD;
+      rotateModelVectorByViewRotation(newState.rotation, tempVec3);
+      newState.position[0] += tempVec3[0];
+      newState.position[1] += tempVec3[1];
+      newState.position[2] += tempVec3[2];
+      newState.viewOffset[0] = newState.viewOffset[1] = newState.viewOffset[2] = 0;
 
-    tempVec3[0] = right * helper.VIEW_DIRECTION_RIGHT;
-    tempVec3[1] = up * helper.VIEW_DIRECTION_UP;
-    tempVec3[2] = forward * helper.VIEW_DIRECTION_FORWARD * 6.6; // ~200 m/s at 60fps
-    rotateModelVectorByViewRotation(newState.rotation, tempVec3);
-    newState.position[0] += tempVec3[0];
-    newState.position[1] += tempVec3[1];
-    newState.position[2] += tempVec3[2];
-    newState.viewOffset[0] = newState.viewOffset[1] = newState.viewOffset[2] = 0;
+      return newState;
+    };
 
-    return newState;
-  };
-
-  return CameraOperator;
-});
+    return CameraOperator;
+  });
 /**
 
 @module Client
@@ -1675,7 +1847,7 @@ define('util/time/TimeWatch',[], function() {
   
 
   var TimeWatch = function(initTime) {
-    this.reset(initTime);
+    this.reset(initTime || 0);
   };
 
   /**
@@ -1807,6 +1979,7 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       };
 
       this.systemTimeSource = new SystemTimeSource();
+      this.timeWatch = new TimeWatch();
 
       this.mainScreen = mainScreen;
       this.productionManager = productionManager;
@@ -2046,6 +2219,8 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       var lightBoard = set.getLightBoard();
 
       this.set = set;
+      this.clockedTimeSource = new ClockedTimeSource(this.set.getSyncSource().getRate());
+      this.timeWatch.reset(that.clockedTimeSource.now());
 
       this.director = new Resources.Director();
       this.reel = new Reel();
@@ -2076,10 +2251,10 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
         shotList = new Track([]);
         this.reel.addTrack(shotList);
       }
-      this.cameraOperator = new Resources.CameraOperator(set.getSceneCamera(), shotList);
+      this.cameraOperator = new Resources.CameraOperator(set.getSceneCamera(), shotList, this.timeWatch);
       this.setFocusOnCamera();
 
-      this.stageManager = new Resources.StageManager(set.getStage());
+      this.stageManager = new Resources.StageManager(set.getStage(), this.timeWatch);
 
       this.createDefaultBindings();
       this.setupGamepadInput();
@@ -2099,7 +2274,10 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
         // TODO: move this to some general time keeper
 
         // this is part of the callback from the intermittent mechanism; onNewFrame
-        that.systemTimeSource.now();
+        that.clockedTimeSource.tick();
+        that.timeWatch.setTime(that.clockedTimeSource.now());
+        //that.timeWatch.setTime(that.systemTimeSource.now());
+        //console.log("time: " + that.timeWatch.getDelta());
         that.stageManager.updateStage();
         that.cameraOperator.updateCamera();
 

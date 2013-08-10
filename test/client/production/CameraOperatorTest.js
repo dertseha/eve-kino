@@ -1,5 +1,5 @@
 /* global buster */
-define(["production/CameraOperator", "production/Track"], function(CameraOperator, Track) {
+define(["production/CameraOperator", "production/Track", "util/time/TimeWatch"], function(CameraOperator, Track, TimeWatch) {
   "use strict";
 
   var assert = buster.assert;
@@ -35,13 +35,15 @@ define(["production/CameraOperator", "production/Track"], function(CameraOperato
       };
 
       this.track = new Track([]);
+      this.timeWatch = new TimeWatch();
+      this.timeWatch.setTime(1.0);
 
       this.commandChannel = {
         getCommands: function() {
           return commands;
         }
       };
-      this.operator = new CameraOperator(this.camera, this.track);
+      this.operator = new CameraOperator(this.camera, this.track, this.timeWatch);
       this.operator.setCommandChannel(this.commandChannel);
     },
 

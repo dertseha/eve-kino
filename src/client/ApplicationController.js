@@ -99,6 +99,7 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       };
 
       this.systemTimeSource = new SystemTimeSource();
+      this.timeWatch = new TimeWatch();
 
       this.mainScreen = mainScreen;
       this.productionManager = productionManager;
@@ -338,6 +339,8 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       var lightBoard = set.getLightBoard();
 
       this.set = set;
+      this.clockedTimeSource = new ClockedTimeSource(this.set.getSyncSource().getRate());
+      this.timeWatch.reset(that.clockedTimeSource.now());
 
       this.director = new Resources.Director();
       this.reel = new Reel();
@@ -368,10 +371,10 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
         shotList = new Track([]);
         this.reel.addTrack(shotList);
       }
-      this.cameraOperator = new Resources.CameraOperator(set.getSceneCamera(), shotList);
+      this.cameraOperator = new Resources.CameraOperator(set.getSceneCamera(), shotList, this.timeWatch);
       this.setFocusOnCamera();
 
-      this.stageManager = new Resources.StageManager(set.getStage());
+      this.stageManager = new Resources.StageManager(set.getStage(), this.timeWatch);
 
       this.createDefaultBindings();
       this.setupGamepadInput();
@@ -391,7 +394,10 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
         // TODO: move this to some general time keeper
 
         // this is part of the callback from the intermittent mechanism; onNewFrame
-        that.systemTimeSource.now();
+        that.clockedTimeSource.tick();
+        that.timeWatch.setTime(that.clockedTimeSource.now());
+        //that.timeWatch.setTime(that.systemTimeSource.now());
+        //console.log("time: " + that.timeWatch.getDelta());
         that.stageManager.updateStage();
         that.cameraOperator.updateCamera();
 

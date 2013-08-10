@@ -7,8 +7,9 @@ The Stage Manager updates the stage according to the script and/or input
 define(["production/Animator"], function(Animator) {
   "use strict";
 
-  var StageManager = function(stage) {
+  var StageManager = function(stage, timeWatch) {
     this.stage = stage;
+    this.timeWatch = timeWatch;
 
     this.animators = [];
   };
@@ -44,7 +45,7 @@ define(["production/Animator"], function(Animator) {
     var animator = this.findAnimatorByProp(prop);
 
     if (!animator) {
-      animator = new Animator(prop);
+      animator = new Animator(prop, this.timeWatch);
       this.animators.push(animator);
     }
 
