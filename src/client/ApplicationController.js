@@ -1,4 +1,4 @@
-/* jshint maxparams:10 */
+/* jshint maxparams:20 */
 /* global console */
 /**
 The ApplicationController is the master controller for the app
@@ -8,10 +8,11 @@ The ApplicationController is the master controller for the app
 */
 define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
     "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/ccp/res/SceneryArchetype",
-    "production/Track", "production/Reel"
+    "production/Track", "production/Reel", "util/time/SystemTimeSource", "util/time/ClockedTimeSource", "util/time/TimeWatch"
   ],
 
-  function(q, defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
+  function(q, defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel,
+    SystemTimeSource, ClockedTimeSource, TimeWatch) {
     "use strict";
 
     var addPlanet = function(resLibrary, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
@@ -96,6 +97,8 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       var sessionMeta = {
         set: {}
       };
+
+      this.systemTimeSource = new SystemTimeSource();
 
       this.mainScreen = mainScreen;
       this.productionManager = productionManager;
@@ -388,6 +391,7 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
         // TODO: move this to some general time keeper
 
         // this is part of the callback from the intermittent mechanism; onNewFrame
+        that.systemTimeSource.now();
         that.stageManager.updateStage();
         that.cameraOperator.updateCamera();
 

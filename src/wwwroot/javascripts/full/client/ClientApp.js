@@ -1542,7 +1542,171 @@ define('production/Reel',[], function() {
 
   return Reel;
 });
-/* jshint maxparams:10 */
+/**
+The helper is a static object providing some helper constants and functions
+for browser access.
+
+@module Client
+@class BrowserHelper
+*/
+define('util/BrowserHelper',[], function() {
+  
+
+  /**
+   * Tries to find a property with prefixes for the common browsers on a
+   * specific target.
+   *
+   * @method findPrefixProperty
+   * @param {Object} target in which target object to look for
+   * @param {String} name the name of the property (without prefix)
+   * @param {Object} [shim] optional shim to return if none found
+   * @param {Object} [overrides] optional overrides, keyed by the prefix
+   * @return {Function} a getter function returning the found object or shim
+   */
+  var findPrefixProperty = function(target, name, shim, overrides) {
+    var prefixes = ["webkit", "moz", "ms", "o"];
+    var result = function() {
+      return shim;
+    };
+
+    prefixes.forEach(function(prefix) {
+      var fullName = (overrides && overrides[prefix]) || (prefix + name);
+
+      if (fullName in target) {
+        result = function() {
+          return target[fullName];
+        };
+      }
+    });
+
+    return result;
+  };
+
+  var helper = {
+    findPrefixProperty: findPrefixProperty
+  };
+
+  return helper;
+});
+/* global window */
+/**
+This is a time source that provides a relative second count based on the system.
+It tries to use high performance time interface before falling back to Date().
+
+@module Client
+@class SystemTimeSource
+*/
+define('util/time/SystemTimeSource',["util/BrowserHelper"], function(browserHelper) {
+  
+
+  // http://www.w3.org/TR/hr-time/#sec-DOMHighResTimeStamp
+  var performance = window.performance || {};
+
+  if (!("now" in performance)) {
+    performance.now = browserHelper.findPrefixProperty(performance, "Now", function() {
+      return new Date().getTime();
+    })();
+  }
+
+  var SystemTimeSource = function() {
+    this.startTime = performance.now();
+  };
+
+  /**
+   * @method now
+   * @return {Number} Seconds (including fractions) since instantiation.
+   */
+  SystemTimeSource.prototype.now = function() {
+    return (performance.now() - this.startTime) * 0.001;
+  };
+
+  return SystemTimeSource;
+});
+/**
+This is a time source that provides a second count based on a sync clock.
+
+@module Client
+@class ClockedTimeSource
+*/
+define('util/time/ClockedTimeSource',[], function() {
+  
+
+  var ClockedTimeSource = function(hertz) {
+    this.hertz = hertz;
+    this.delta = 1 / hertz;
+
+    this.time = 0.0;
+  };
+
+  /**
+   * Increments the time by one tick
+   * @method tick
+   */
+  ClockedTimeSource.prototype.tick = function() {
+    this.time += this.delta;
+  };
+
+  /**
+   * sets the time according to a specific amount of ticks
+   * @method setTickCount
+   * @param {Number} ticks amount of ticks
+   */
+  ClockedTimeSource.prototype.setTickCount = function(ticks) {
+    this.time = ticks / this.hertz;
+  };
+
+  /**
+   * @method now
+   * @return {Number} Seconds (including fractions)
+   */
+  ClockedTimeSource.prototype.now = function() {
+    return this.time;
+  };
+
+  return ClockedTimeSource;
+});
+/**
+This time watch keeps track of deltas between calls of setTime() . 
+
+@module Client
+@class TimeWatch
+*/
+define('util/time/TimeWatch',[], function() {
+  
+
+  var TimeWatch = function(initTime) {
+    this.reset(initTime);
+  };
+
+  /**
+   * @method reset
+   * @param {Number} time the new time
+   */
+  TimeWatch.prototype.reset = function(time) {
+    this.lastTime = time;
+    this.delta = 0.0;
+  };
+
+  /**
+   * @method setTime
+   * @param {Number} time the new time
+   */
+  TimeWatch.prototype.setTime = function(time) {
+    this.delta = time - this.lastTime;
+    this.lastTime = time;
+  };
+
+  /**
+   * @method getDelta
+   * @return {Number} Delta time since last checkpoint. Unit in seconds.
+   */
+  TimeWatch.prototype.getDelta = function() {
+    return this.delta;
+  };
+
+  return TimeWatch;
+});
+/* jshint maxparams:20 */
 /* global console */
 /**
 The ApplicationController is the master controller for the app
@@ -1552,10 +1716,11 @@ The ApplicationController is the master controller for the app
 */
 define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/GamepadApi",
     "production/ccp/res/ShipArchetype", "production/ccp/res/PlanetArchetype", "production/ccp/res/SceneryArchetype",
-    "production/Track", "production/Reel"
+    "production/Track", "production/Reel", "util/time/SystemTimeSource", "util/time/ClockedTimeSource", "util/time/TimeWatch"
   ],
 
-  function(q, defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel) {
+  function(q, defaults, uiDialogs, Resources, GamepadApi, ShipArchetype, PlanetArchetype, SceneryArchetype, Track, Reel,
+    SystemTimeSource, ClockedTimeSource, TimeWatch) {
     
 
     var addPlanet = function(resLibrary, itemId, resourceUrl, atmosphereUrl, heightMap1Url, heightMap2Url) {
@@ -1640,6 +1805,8 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       var sessionMeta = {
         set: {}
       };
+
+      this.systemTimeSource = new SystemTimeSource();
 
       this.mainScreen = mainScreen;
       this.productionManager = productionManager;
@@ -1932,6 +2099,7 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
         // TODO: move this to some general time keeper
 
         // this is part of the callback from the intermittent mechanism; onNewFrame
+        that.systemTimeSource.now();
         that.stageManager.updateStage();
         that.cameraOperator.updateCamera();
 
@@ -2845,52 +3013,6 @@ define('ui/ControllerList',["ui/SplashDialog", "ui/CreateSessionDialog", "ui/Add
 
     return controller;
   });
-/**
-The helper is a static object providing some helper constants and functions
-for browser access.
-
-@module Client
-@class BrowserHelper
-*/
-define('util/BrowserHelper',[], function() {
-  
-
-  /**
-   * Tries to find a property with prefixes for the common browsers on a
-   * specific target.
-   *
-   * @method findPrefixProperty
-   * @param {Object} target in which target object to look for
-   * @param {String} name the name of the property (without prefix)
-   * @param {Object} [shim] optional shim to return if none found
-   * @param {Object} [overrides] optional overrides, keyed by the prefix
-   * @return {Function} a getter function returning the found object or shim
-   */
-  var findPrefixProperty = function(target, name, shim, overrides) {
-    var prefixes = ["webkit", "moz", "ms", "o"];
-    var result = function() {
-      return shim;
-    };
-
-    prefixes.forEach(function(prefix) {
-      var fullName = (overrides && overrides[prefix]) || (prefix + name);
-
-      if (fullName in target) {
-        result = function() {
-          return target[fullName];
-        };
-      }
-    });
-
-    return result;
-  };
-
-  var helper = {
-    findPrefixProperty: findPrefixProperty
-  };
-
-  return helper;
-});
 /**
 The data-film-view directive handles the correct display of a film view and
 its contained port.
