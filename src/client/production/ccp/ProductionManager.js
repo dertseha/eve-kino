@@ -81,6 +81,7 @@ define(["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/
     var shipRegExp = /.*\/model\/ship\/.*red$/i;
     var wreckRegExp = /.*wreck.*/i;
     var planetRegExp = /.*\/planet\/.*red$/i;
+    var starRegExp = /.*\/model\/lensflare\/.*red$/i;
     var turretRegExp = /.*\/model\/turret\/.*red$/i;
     var objRegExp = /.*red$/i;
     var ignoredRegExp = /.*(character|interior|placeable).*/i;
@@ -95,6 +96,10 @@ define(["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/
 
     var isPlanet = function(entry) {
       return planetRegExp.test(entry.graphicFile);
+    };
+
+    var isStar = function(entry) {
+      return starRegExp.test(entry.graphicFile);
     };
 
     var isTurret = function(entry) {
@@ -118,6 +123,22 @@ define(["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/
         bgEntry.resourceUrl = entry.graphicFile;
 
         return bgEntry;
+      };
+    })();
+
+    var createStarEntry = (function() {
+      var entryPrototype = {
+        toString: function() {
+          return this.resourceUrl;
+        }
+      };
+
+      return function(entry) {
+        var starEntry = Object.create(entryPrototype);
+
+        starEntry.resourceUrl = entry.graphicFile;
+
+        return starEntry;
       };
     })();
 
@@ -150,6 +171,8 @@ define(["lib/q", "production/ccp/SyncSource", "production/ccp/Set", "production/
             standardResourceLibrary.addResource("ship", createShipArchetype(entry));
           } else if (isPlanet(entry)) {
             // TODO
+          } else if (isStar(entry)) {
+            standardResourceLibrary.addResource("star", createStarEntry(entry));
           } else if (isTurret(entry)) {
             // TODO
           } else if (isObject(entry)) {

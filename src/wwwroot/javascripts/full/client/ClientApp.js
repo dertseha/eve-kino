@@ -1952,21 +1952,9 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
         resourceUrl: "",
         toString: function() {
           return "(no star)";
-        },
-        request: function(lightBoard) {
-          lightBoard.removeStar();
         }
       };
       modelView.stars.push(noStar);
-      modelView.stars.push({
-        resourceUrl: "res:/dx9/model/lensflare/blue.red",
-        toString: function() {
-          return this.resourceUrl;
-        },
-        request: function(lightBoard) {
-          lightBoard.requestStar(this.resourceUrl);
-        }
-      });
       modelView.selectedStar = noStar;
 
       modelView.stageProps = [];
@@ -1994,6 +1982,10 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
       resPromise.then(function(resLibrary) {
 
         that.resourceLibrary = resLibrary;
+
+        resLibrary.forEachResource("star", function(entry) {
+          that.modelView.stars.push(entry);
+        });
 
         addPlanet(resLibrary, 40000002,
           "res:/dx9/model/WorldObject/Planet/Template/Terrestrial/P_Terrestrial_61.red",
@@ -2294,7 +2286,13 @@ define('ApplicationController',["lib/q", "Defaults", "ui/Dialogs", "production/R
     };
 
     ApplicationController.prototype.requestStar = function(starDesc) {
-      starDesc.request(this.set.getLightBoard());
+      var lightBoard = this.set.getLightBoard();
+
+      if (starDesc.resourceUrl !== "") {
+        lightBoard.requestStar(starDesc.resourceUrl);
+      } else {
+        lightBoard.removeStar();
+      }
     };
 
     ApplicationController.prototype.clearFocus = function() {
@@ -2892,6 +2890,7 @@ define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource",
     var shipRegExp = /.*\/model\/ship\/.*red$/i;
     var wreckRegExp = /.*wreck.*/i;
     var planetRegExp = /.*\/planet\/.*red$/i;
+    var starRegExp = /.*\/model\/lensflare\/.*red$/i;
     var turretRegExp = /.*\/model\/turret\/.*red$/i;
     var objRegExp = /.*red$/i;
     var ignoredRegExp = /.*(character|interior|placeable).*/i;
@@ -2906,6 +2905,10 @@ define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource",
 
     var isPlanet = function(entry) {
       return planetRegExp.test(entry.graphicFile);
+    };
+
+    var isStar = function(entry) {
+      return starRegExp.test(entry.graphicFile);
     };
 
     var isTurret = function(entry) {
@@ -2929,6 +2932,22 @@ define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource",
         bgEntry.resourceUrl = entry.graphicFile;
 
         return bgEntry;
+      };
+    })();
+
+    var createStarEntry = (function() {
+      var entryPrototype = {
+        toString: function() {
+          return this.resourceUrl;
+        }
+      };
+
+      return function(entry) {
+        var starEntry = Object.create(entryPrototype);
+
+        starEntry.resourceUrl = entry.graphicFile;
+
+        return starEntry;
       };
     })();
 
@@ -2961,6 +2980,8 @@ define('production/ccp/ProductionManager',["lib/q", "production/ccp/SyncSource",
             standardResourceLibrary.addResource("ship", createShipArchetype(entry));
           } else if (isPlanet(entry)) {
             // TODO
+          } else if (isStar(entry)) {
+            standardResourceLibrary.addResource("star", createStarEntry(entry));
           } else if (isTurret(entry)) {
             // TODO
           } else if (isObject(entry)) {

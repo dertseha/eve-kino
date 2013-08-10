@@ -72,21 +72,9 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
         resourceUrl: "",
         toString: function() {
           return "(no star)";
-        },
-        request: function(lightBoard) {
-          lightBoard.removeStar();
         }
       };
       modelView.stars.push(noStar);
-      modelView.stars.push({
-        resourceUrl: "res:/dx9/model/lensflare/blue.red",
-        toString: function() {
-          return this.resourceUrl;
-        },
-        request: function(lightBoard) {
-          lightBoard.requestStar(this.resourceUrl);
-        }
-      });
       modelView.selectedStar = noStar;
 
       modelView.stageProps = [];
@@ -114,6 +102,10 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
       resPromise.then(function(resLibrary) {
 
         that.resourceLibrary = resLibrary;
+
+        resLibrary.forEachResource("star", function(entry) {
+          that.modelView.stars.push(entry);
+        });
 
         addPlanet(resLibrary, 40000002,
           "res:/dx9/model/WorldObject/Planet/Template/Terrestrial/P_Terrestrial_61.red",
@@ -414,7 +406,13 @@ define(["lib/q", "Defaults", "ui/Dialogs", "production/Resources", "controls/Gam
     };
 
     ApplicationController.prototype.requestStar = function(starDesc) {
-      starDesc.request(this.set.getLightBoard());
+      var lightBoard = this.set.getLightBoard();
+
+      if (starDesc.resourceUrl !== "") {
+        lightBoard.requestStar(starDesc.resourceUrl);
+      } else {
+        lightBoard.removeStar();
+      }
     };
 
     ApplicationController.prototype.clearFocus = function() {
