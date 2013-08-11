@@ -613,13 +613,66 @@ define('simulation/SimulatedThruster',[], function() {
   return SimulatedThruster;
 });
 /**
+The helper is a static object providing some helper methods for mathematics.
+
+@module Client
+@class MathHelper
+*/
+define('util/MathHelper',[], function() {
+  
+
+  var getPointOnLine = function(pointA, pointB, offset) {
+    var result = {
+      x: pointA.x + ((pointB.x - pointA.x) * offset),
+      y: pointA.y + ((pointB.y - pointA.y) * offset)
+    };
+
+    return result;
+  };
+
+  var bezierFoldEdges = function(points, offset) {
+    var result = [];
+    var i;
+
+    for (i = 0; i < (points.length - 1); i++) {
+      result.push(getPointOnLine(points[i], points[i + 1], offset));
+    }
+
+    return result;
+  };
+
+  /**
+   * Calculate the Y from a given X on a bezier curve. X is not specified in
+   * an absolute coordinate, but the offset in the range of 0..1
+   *
+   * @method bezierGetY
+   * @return {Number} The resulting Y
+   */
+  var bezierGetY = function(points, x) {
+    var result = 0.0;
+    var temp = points;
+
+    while (temp.length > 1) {
+      temp = bezierFoldEdges(temp, x);
+    }
+
+    return temp[0].y;
+  };
+
+  var helper = {
+    bezierGetY: bezierGetY
+  };
+
+  return helper;
+});
+/**
 An animator is responsible for updating the state of a prop
 
 @module Client
 @class Animator
 */
-define('production/Animator',["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/SimulatedThruster"],
-  function(glMatrix, helper, Actuator, SimulatedThruster) {
+define('production/Animator',["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/SimulatedThruster", "util/MathHelper"],
+  function(glMatrix, helper, Actuator, SimulatedThruster, mathHelper) {
     
 
     var tempQuat = glMatrix.quat4.create();
@@ -650,6 +703,17 @@ define('production/Animator',["lib/gl-matrix", "util/GlHelper", "simulation/Actu
         };
       };
 
+      var makePoint = function(x, y) {
+        var point = {
+          x: x,
+          y: y
+        };
+
+        return point;
+      };
+      var pointsMovement = [makePoint(0, 0), makePoint(0.33, 0.25), makePoint(0.66, 0.75), makePoint(1, 1)];
+      var pointsRotation = [makePoint(0, 0), makePoint(0.75, 0.25), makePoint(1, 1)];
+
       this.prop = prop;
       this.script = emptyScript;
 
@@ -662,22 +726,22 @@ define('production/Animator',["lib/gl-matrix", "util/GlHelper", "simulation/Actu
 
       addAgility("forward", 300, 0.5);
       addAgility("navigation", 100, 0.5);
-      addAgility("rotation", 2, 0.5);
+      addAgility("rotation", 2, 1.0);
 
-      this.createThruster("moveForward", "forward");
+      this.createThruster("moveForward", "forward", pointsMovement);
       ["moveBackward", "moveLeft", "moveRight", "moveUp", "moveDown"].forEach(function(direction) {
-        that.createThruster(direction, "navigation");
+        that.createThruster(direction, "navigation", pointsMovement);
       });
       ["rollClockwise", "rollCounter", "pitchUp", "pitchDown", "yawLeft", "yawRight"].forEach(function(direction) {
-        that.createThruster(direction, "rotation");
+        that.createThruster(direction, "rotation", pointsRotation);
       });
     };
 
-    Animator.prototype.createThruster = function(thrusterName, agilityName) {
+    Animator.prototype.createThruster = function(thrusterName, agilityName, points) {
       var entry = this.agility[agilityName];
       var actuator = new Actuator(this.timeWatch, entry.time);
       var velocityTimeFunction = function(time) {
-        return time;
+        return mathHelper.bezierGetY(points, time);
       };
       var thruster = new SimulatedThruster(actuator, entry.maximum, velocityTimeFunction);
 
@@ -987,8 +1051,8 @@ A camera operator handles a camera when directed to
 @module Client
 @class Director
 */
-define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/SimulatedThruster"],
-  function(glMatrix, helper, Actuator, SimulatedThruster) {
+define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/SimulatedThruster", "util/MathHelper"],
+  function(glMatrix, helper, Actuator, SimulatedThruster, mathHelper) {
     
 
     var actionNames = [
@@ -1038,6 +1102,17 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper", "simulatio
         };
       };
 
+      var makePoint = function(x, y) {
+        var point = {
+          x: x,
+          y: y
+        };
+
+        return point;
+      };
+      var pointsMovement = [makePoint(0, 0), makePoint(0.33, 0.25), makePoint(0.66, 0.75), makePoint(1, 1)];
+      var pointsRotation = [makePoint(0, 0), makePoint(0.75, 0.25), makePoint(1, 1)];
+
       this.camera = camera;
       this.shotList = shotList;
 
@@ -1051,12 +1126,12 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper", "simulatio
       addAgility("navigation", 100, 0.5);
       addAgility("rotation", 2, 0.5);
 
-      this.createThruster("moveForward", "forward");
+      this.createThruster("moveForward", "forward", pointsMovement);
       ["moveBackward", "moveLeft", "moveRight", "moveUp", "moveDown"].forEach(function(direction) {
-        that.createThruster(direction, "navigation");
+        that.createThruster(direction, "navigation", pointsMovement);
       });
       ["rollClockwise", "rollCounter", "pitchUp", "pitchDown", "yawLeft", "yawRight"].forEach(function(direction) {
-        that.createThruster(direction, "rotation");
+        that.createThruster(direction, "rotation", pointsRotation);
       });
 
       /**
@@ -1070,11 +1145,11 @@ define('production/CameraOperator',["lib/gl-matrix", "util/GlHelper", "simulatio
       return actionNames.slice(0);
     };
 
-    CameraOperator.prototype.createThruster = function(thrusterName, agilityName) {
+    CameraOperator.prototype.createThruster = function(thrusterName, agilityName, points) {
       var entry = this.agility[agilityName];
       var actuator = new Actuator(this.timeWatch, entry.time);
       var velocityTimeFunction = function(time) {
-        return time;
+        return mathHelper.bezierGetY(points, time);
       };
       var thruster = new SimulatedThruster(actuator, entry.maximum, velocityTimeFunction);
 

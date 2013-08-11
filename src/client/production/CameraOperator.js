@@ -5,8 +5,8 @@ A camera operator handles a camera when directed to
 @module Client
 @class Director
 */
-define(["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/SimulatedThruster"],
-  function(glMatrix, helper, Actuator, SimulatedThruster) {
+define(["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/SimulatedThruster", "util/MathHelper"],
+  function(glMatrix, helper, Actuator, SimulatedThruster, mathHelper) {
     "use strict";
 
     var actionNames = [
@@ -56,6 +56,17 @@ define(["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/Sim
         };
       };
 
+      var makePoint = function(x, y) {
+        var point = {
+          x: x,
+          y: y
+        };
+
+        return point;
+      };
+      var pointsMovement = [makePoint(0, 0), makePoint(0.33, 0.25), makePoint(0.66, 0.75), makePoint(1, 1)];
+      var pointsRotation = [makePoint(0, 0), makePoint(0.75, 0.25), makePoint(1, 1)];
+
       this.camera = camera;
       this.shotList = shotList;
 
@@ -69,12 +80,12 @@ define(["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/Sim
       addAgility("navigation", 100, 0.5);
       addAgility("rotation", 2, 0.5);
 
-      this.createThruster("moveForward", "forward");
+      this.createThruster("moveForward", "forward", pointsMovement);
       ["moveBackward", "moveLeft", "moveRight", "moveUp", "moveDown"].forEach(function(direction) {
-        that.createThruster(direction, "navigation");
+        that.createThruster(direction, "navigation", pointsMovement);
       });
       ["rollClockwise", "rollCounter", "pitchUp", "pitchDown", "yawLeft", "yawRight"].forEach(function(direction) {
-        that.createThruster(direction, "rotation");
+        that.createThruster(direction, "rotation", pointsRotation);
       });
 
       /**
@@ -88,11 +99,11 @@ define(["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/Sim
       return actionNames.slice(0);
     };
 
-    CameraOperator.prototype.createThruster = function(thrusterName, agilityName) {
+    CameraOperator.prototype.createThruster = function(thrusterName, agilityName, points) {
       var entry = this.agility[agilityName];
       var actuator = new Actuator(this.timeWatch, entry.time);
       var velocityTimeFunction = function(time) {
-        return time;
+        return mathHelper.bezierGetY(points, time);
       };
       var thruster = new SimulatedThruster(actuator, entry.maximum, velocityTimeFunction);
 

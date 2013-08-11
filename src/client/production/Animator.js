@@ -4,8 +4,8 @@ An animator is responsible for updating the state of a prop
 @module Client
 @class Animator
 */
-define(["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/SimulatedThruster"],
-  function(glMatrix, helper, Actuator, SimulatedThruster) {
+define(["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/SimulatedThruster", "util/MathHelper"],
+  function(glMatrix, helper, Actuator, SimulatedThruster, mathHelper) {
     "use strict";
 
     var tempQuat = glMatrix.quat4.create();
@@ -36,6 +36,17 @@ define(["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/Sim
         };
       };
 
+      var makePoint = function(x, y) {
+        var point = {
+          x: x,
+          y: y
+        };
+
+        return point;
+      };
+      var pointsMovement = [makePoint(0, 0), makePoint(0.33, 0.25), makePoint(0.66, 0.75), makePoint(1, 1)];
+      var pointsRotation = [makePoint(0, 0), makePoint(0.75, 0.25), makePoint(1, 1)];
+
       this.prop = prop;
       this.script = emptyScript;
 
@@ -48,22 +59,22 @@ define(["lib/gl-matrix", "util/GlHelper", "simulation/Actuator", "simulation/Sim
 
       addAgility("forward", 300, 0.5);
       addAgility("navigation", 100, 0.5);
-      addAgility("rotation", 2, 0.5);
+      addAgility("rotation", 2, 1.0);
 
-      this.createThruster("moveForward", "forward");
+      this.createThruster("moveForward", "forward", pointsMovement);
       ["moveBackward", "moveLeft", "moveRight", "moveUp", "moveDown"].forEach(function(direction) {
-        that.createThruster(direction, "navigation");
+        that.createThruster(direction, "navigation", pointsMovement);
       });
       ["rollClockwise", "rollCounter", "pitchUp", "pitchDown", "yawLeft", "yawRight"].forEach(function(direction) {
-        that.createThruster(direction, "rotation");
+        that.createThruster(direction, "rotation", pointsRotation);
       });
     };
 
-    Animator.prototype.createThruster = function(thrusterName, agilityName) {
+    Animator.prototype.createThruster = function(thrusterName, agilityName, points) {
       var entry = this.agility[agilityName];
       var actuator = new Actuator(this.timeWatch, entry.time);
       var velocityTimeFunction = function(time) {
-        return time;
+        return mathHelper.bezierGetY(points, time);
       };
       var thruster = new SimulatedThruster(actuator, entry.maximum, velocityTimeFunction);
 
