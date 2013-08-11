@@ -110,7 +110,7 @@ function(templates) {
 
   return dialog;
 });
-define('version',[], function() { return "0.0.6"; });
+define('version',[], function() { return "0.0.7"; });
 /* global console */
 /**
 This validator handles session data
